@@ -1,0 +1,23 @@
+{
+  "name": "toner",
+  "private": true,
+  "description": "Toner: a music teaching and helper app for guitar and voice",
+  "type": "module",
+  "workspaces": [
+    "packages/theory",
+    "packages/instrument",
+    "apps/web"
+  ],
+  "scripts": {
+    "build:wasm": "node scripts/build-wasm.mjs",
+    "dev": "npm run build:wasm && npm run dev -w @toner/web",
+    "build": "npm run build:wasm && npm run build -w @toner/web",
+    "test": "vitest run",
+    "test:rust": "cargo test --manifest-path crates/dsp/Cargo.toml",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
