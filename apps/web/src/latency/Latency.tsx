@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { resumeAudio } from '../audio/context';
 import { openMic, type MicInput } from '../audio/mic';
 import { clickBuffer, playBuffer } from '../audio/synth';
+import { useSettings } from '../settings';
 import { matchOnsets, summarize, verdict, type Match } from './measure';
 
 const CLICKS = 12;
 const SPACING = 0.5;
 
 export function Latency() {
+  const { settings, set } = useSettings();
   const [sensitivity, setSensitivity] = useState(0.15);
   const [phase, setPhase] = useState<'idle' | 'running' | 'done'>('idle');
   const [matches, setMatches] = useState<Match[]>([]);
@@ -90,7 +92,13 @@ export function Latency() {
       {summary && (
         <div className="result">
           <div className="big">{(summary.median * 1000).toFixed(1)} ms</div>
-          <p>{verdict(summary.median * 1000)}</p>
+          <p>{verdict(summary.median * 1000, summary.iqr * 1000)}</p>
+          <div className="actions">
+            <button className="primary" onClick={() => set({ latencyMs: Math.round(summary.median * 10000) / 10 })} disabled={Math.abs(settings.latencyMs - summary.median * 1000) < 0.05}>
+              {Math.abs(settings.latencyMs - summary.median * 1000) < 0.05 ? 'Saved for this device' : 'Save for this device'}
+            </button>
+            {settings.latencyMs > 0 && <span className="hint">Saved: {settings.latencyMs.toFixed(1)} ms. Play-along timing will subtract it.</span>}
+          </div>
           <table>
             <tbody>
               <tr>

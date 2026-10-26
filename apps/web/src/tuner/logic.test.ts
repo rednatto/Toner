@@ -29,23 +29,40 @@ describe('tuner logic', () => {
     expect(tuneState(30)).toBe('off');
   });
 
-  it('smooths away a single octave slip and forgets after silence', () => {
+  it('smooths away a single octave slip', () => {
     const s = new PitchSmoother();
     const f = pitchToFreq(45);
     s.push(0, f, 0.95, 440);
     s.push(0.01, f, 0.95, 440);
-    const slip = s.push(0.02, f * 2, 0.95, 440);
-    expect(slip).toBeCloseTo(45);
-    expect(s.push(0.03, f, 0.95, 440)).toBeCloseTo(45);
-    expect(s.push(0.04, 0, 0, 440)).toBeCloseTo(45);
-    expect(s.push(1, 0, 0, 440)).toBeNull();
+    expect(s.push(0.02, f * 2, 0.95, 440)!.pitch).toBeCloseTo(45);
+    expect(s.push(0.03, f, 0.95, 440)!.pitch).toBeCloseTo(45);
+  });
+
+  it('keeps following a decaying note with weaker frames', () => {
+    const s = new PitchSmoother();
+    s.push(0, pitchToFreq(45), 0.95, 440);
+    // Clarity drops as the string rings out, and the note drifts flat.
+    let r = null;
+    for (let i = 1; i <= 10; i++) r = s.push(i * 0.02, pitchToFreq(45 - i * 0.01), 0.65, 440);
+    expect(r!.live).toBe(true);
+    expect(r!.pitch).toBeCloseTo(44.92, 1);
+    // A weak frame far away does not start a note.
+    expect(s.push(0.23, pitchToFreq(52), 0.65, 440)!.pitch).toBeCloseTo(44.92, 1);
+  });
+
+  it('holds the last note after silence until a new one starts', () => {
+    const s = new PitchSmoother();
+    for (let i = 0; i < 4; i++) s.push(i * 0.01, pitchToFreq(45), 0.95, 440);
+    expect(s.push(1, 0, 0, 440)).toEqual({ pitch: expect.closeTo(45), live: false });
+    expect(s.push(5, 0, 0, 440)!.live).toBe(false);
+    expect(s.push(5.01, pitchToFreq(50), 0.95, 440)).toEqual({ pitch: expect.closeTo(50), live: true });
   });
 
   it('follows a real note change', () => {
     const s = new PitchSmoother();
     for (let i = 0; i < 5; i++) s.push(i * 0.01, pitchToFreq(45), 0.95, 440);
-    let out: number | null = null;
+    let out = null;
     for (let i = 5; i < 9; i++) out = s.push(i * 0.01, pitchToFreq(50), 0.95, 440);
-    expect(out).toBeCloseTo(50);
+    expect(out!.pitch).toBeCloseTo(50);
   });
 });

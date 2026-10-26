@@ -5,6 +5,7 @@
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Naming, type NamingMode, type PitchClass } from '@toner/theory';
+import { instrument } from '@toner/instrument';
 import { scheme, type ColourScheme } from './visual/schemes';
 
 export interface Settings {
@@ -16,9 +17,13 @@ export interface Settings {
   a4: number;
   /** Strumming pattern id practised in the metronome, 'custom', or '' for none. */
   strum: string;
+  /** Chord progression id practised in the metronome, 'custom', or '' for none. */
+  progression: string;
+  /** This device's measured round trip from the latency test, in ms (0 = not measured). */
+  latencyMs: number;
 }
 
-const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '' };
+const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '', progression: '', latencyMs: 0 };
 const KEY = 'toner.settings';
 
 function load(): Settings {
@@ -67,4 +72,12 @@ export function useSettings(): Ctx {
   const c = useContext(SettingsContext);
   if (!c) throw new Error('useSettings outside SettingsProvider');
   return c;
+}
+
+/** The chosen instrument profile and tuning. */
+export function useStrings() {
+  const { settings } = useSettings();
+  const profile = instrument(settings.instrument);
+  const tuning = profile.tunings.find((t) => t.id === settings.tuning) ?? profile.tunings[0]!;
+  return { profile, tuning };
 }

@@ -2,11 +2,11 @@
 import { pitchToFreq, type Pitch } from '@toner/theory';
 
 /** A plucked-string-like reference tone that decays over a few seconds. */
-export function pluck(ctx: AudioContext, pitch: Pitch, a4 = 440, when = ctx.currentTime, seconds = 2.5): void {
+export function pluck(ctx: AudioContext, pitch: Pitch, a4 = 440, when = ctx.currentTime, seconds = 2.5, destination: AudioNode = ctx.destination, level = 0.35): void {
   const f = pitchToFreq(pitch, a4);
   const out = ctx.createGain();
   out.gain.setValueAtTime(0.0001, when);
-  out.gain.exponentialRampToValueAtTime(0.35, when + 0.005);
+  out.gain.exponentialRampToValueAtTime(level, when + 0.005);
   out.gain.exponentialRampToValueAtTime(0.0001, when + seconds);
   const filter = ctx.createBiquadFilter();
   filter.type = 'lowpass';
@@ -15,7 +15,7 @@ export function pluck(ctx: AudioContext, pitch: Pitch, a4 = 440, when = ctx.curr
   const osc = ctx.createOscillator();
   osc.type = 'sawtooth';
   osc.frequency.value = f;
-  osc.connect(filter).connect(out).connect(ctx.destination);
+  osc.connect(filter).connect(out).connect(destination);
   osc.start(when);
   osc.stop(when + seconds + 0.05);
 }

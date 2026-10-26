@@ -8,7 +8,7 @@ export function StrumView() {
   const styles = [...new Set(STRUM_PATTERNS.map((p) => p.style))];
   const practise = (id: string) => {
     set({ strum: id });
-    window.location.hash = '#metronome';
+    window.location.hash = '#practice';
   };
   return (
     <div className="view">

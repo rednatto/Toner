@@ -17,6 +17,7 @@ import { useSettings } from '../settings';
 import { MetronomeEngine, type ScheduledClick } from './engine';
 import type { MetronomeSettings } from './plan';
 import { StrumLane } from './StrumLane';
+import { ChordLane, ProgressionPicker, usePracticeProgression } from './Progression';
 
 const MIN_BPM = 20;
 const MAX_BPM = 320;
@@ -32,6 +33,7 @@ const INITIAL: MetronomeSettings = {
   gap: { enabled: false, play: 3, mute: 1 },
   strum: null,
   strumSounds: true,
+  chords: null,
 };
 
 /** Metronome settings that make the grid match a pattern. */
@@ -46,7 +48,7 @@ const ACCENT_LABEL: Record<Accent, string> = { 3: 'strong', 2: 'medium', 1: 'nor
 const NEXT_ACCENT: Record<Accent, Accent> = { 3: 2, 2: 1, 1: 0, 0: 3 };
 
 export function Metronome() {
-  const { settings, set } = useSettings();
+  const { settings, set, names } = useSettings();
   const [s, setS] = useState<MetronomeSettings>(() => {
     const p = strumPattern(settings.strum);
     return p ? { ...INITIAL, ...settingsForPattern(p), strum: p } : INITIAL;
@@ -59,8 +61,17 @@ export function Metronome() {
   const [customTs, setCustomTs] = useState('');
   const [now, setNow] = useState<ScheduledClick | null>(null);
   const [flash, setFlash] = useState(0);
+  const [customProg, setCustomProg] = useState('I V vi IV');
+  const [perBar, setPerBar] = useState<1 | 2 | null>(null);
+  const [chordSound, setChordSound] = useState(true);
+  const { progression: prog, error: progError } = usePracticeProgression(customProg, perBar);
   const settingsRef = useRef(s);
-  settingsRef.current = s;
+  settingsRef.current = {
+    ...s,
+    chords: prog
+      ? { count: prog.chords.length, perBar: prog.perBar, voices: chordSound ? prog.chords.map((c) => c.voicing?.pitches ?? []) : null, a4: settings.a4 }
+      : null,
+  };
   const engine = useRef<MetronomeEngine | null>(null);
   const taps = useRef<number[]>([]);
 
@@ -185,8 +196,9 @@ export function Metronome() {
   return (
     <section className="page metronome">
       <div className={`beat-display ${now?.muted ? 'muted' : ''}`}>
+        {prog && <ChordLane progression={prog} now={now} running={running} />}
         {s.strum ? (
-          <StrumLane pattern={s.strum} now={now} />
+          <StrumLane pattern={s.strum} now={running ? now : null} />
         ) : (
         <div className="beats" role="img" aria-label={now ? `Beat ${now.beat + 1}` : 'Stopped'}>
           {s.accents.map((a, i) => (
@@ -304,6 +316,50 @@ export function Metronome() {
           <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Number(e.target.value))} />
         </label>
       </div>
+
+      <fieldset className="panel">
+        <legend>Chord changes</legend>
+        <div className="controls">
+          <label>
+            Progression
+            <ProgressionPicker
+              value={settings.progression}
+              onChange={(id) => {
+                set({ progression: id });
+                setPerBar(null);
+              }}
+            />
+          </label>
+          {settings.progression === 'custom' && (
+            <label className="grow">
+              Chords as roman numerals from home
+              <input value={customProg} onChange={(e) => setCustomProg(e.target.value)} aria-invalid={!!progError} spellCheck={false} placeholder="I V vi IV" />
+            </label>
+          )}
+          {prog && (
+            <>
+              <div className="seg" role="group" aria-label="Chords per bar">
+                {([1, 2] as const).map((k) => (
+                  <button key={k} aria-pressed={prog.perBar === k} onClick={() => setPerBar(k)}>
+                    {k === 1 ? '1 per bar' : '2 per bar'}
+                  </button>
+                ))}
+              </div>
+              <label className="check">
+                <input type="checkbox" checked={chordSound} onChange={(e) => setChordSound(e.target.checked)} /> Play the chords
+              </label>
+            </>
+          )}
+        </div>
+        {progError && <p className="error">{progError}</p>}
+        {prog?.notes && <p className="hint">{prog.notes}</p>}
+        <p className="hint">
+          {prog
+            ? `In ${names.pc(settings.home)} (home in the header). With a strumming pattern the strums play the chord; without one, each chord sounds once when it arrives.`
+            : 'Pick a progression to practise chord changes in time, alone or with a strumming pattern. Change home in the header to move it to another key.'}{' '}
+          Custom: I ii iii IV V vi vii°, ♭III ♭VI ♭VII, and suffixes 7 maj7 ø7 °7 sus4 6 9.
+        </p>
+      </fieldset>
 
       <fieldset className="panel">
         <legend>Strumming pattern</legend>

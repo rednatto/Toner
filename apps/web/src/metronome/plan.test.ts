@@ -12,6 +12,7 @@ const base: MetronomeSettings = {
   gap: { enabled: false, play: 3, mute: 1 },
   strum: null,
   strumSounds: true,
+  chords: null,
 };
 
 describe('metronome plan', () => {
@@ -57,5 +58,15 @@ describe('metronome plan', () => {
     expect(bar0).toBe('D--D--D-');
     expect(bar1).toBe('--D-D---');
     expect(bar2[0]).toBe(0);
+  });
+
+  it('changes chords once or twice a bar and loops the progression', () => {
+    const chords = { count: 3, perBar: 1 as const, voices: null, a4: 440 };
+    const at = (bar: number, perBar: 1 | 2) => clicksForBar({ ...base, chords: { ...chords, perBar } }, bar).map((c) => `${c.chord}${c.change ? '!' : ''}`).join(' ');
+    expect(at(0, 1)).toBe('0! 0 0 0');
+    expect(at(4, 1)).toBe('1! 1 1 1');
+    expect(at(0, 2)).toBe('0! 0 1! 1');
+    expect(at(1, 2)).toBe('2! 2 0! 0');
+    expect(clicksForBar({ ...base, timeSignature: { beats: 3, unit: 4 }, accents: [3, 1, 1], chords: { ...chords, perBar: 2 } }, 0).map((c) => c.chord)).toEqual([0, 0, 1]);
   });
 });

@@ -18,11 +18,11 @@ export function Tuner() {
   const [useDrone, setUseDrone] = useState(false);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [reading, setReading] = useState<Reading | null>(null);
+  const [reading, setReading] = useState<(Reading & { live: boolean }) | null>(null);
   const [level, setLevel] = useState(0);
   const mic = useRef<MicInput | null>(null);
   const stopDrone = useRef<(() => void) | null>(null);
-  const latest = useRef<{ reading: Reading | null; level: number }>({ reading: null, level: 0 });
+  const latest = useRef<{ reading: (Reading & { live: boolean }) | null; level: number }>({ reading: null, level: 0 });
 
   const tuning: Tuning | null = useMemo(() => {
     if (settings.tuning === 'custom') {
@@ -47,9 +47,10 @@ export function Tuner() {
           if (m.type !== 'pitch') return;
           const { strings: s, mode: md, a4 } = analysis.current;
           const p = smoother.current.push(m.time, m.freq, m.clarity, a4);
-          latest.current = { reading: p === null ? null : readPitch(p, s, md), level: m.level };
+          latest.current = { reading: p === null ? null : { ...readPitch(p.pitch, s, md), live: p.live }, level: m.level };
         },
-        { minHz: profile.range.minHz, maxHz: profile.range.maxHz },
+        // A low gate lets the tuner follow a string as it rings out.
+        { minHz: profile.range.minHz, maxHz: profile.range.maxHz, gate: 0.001 },
       );
       setRunning(true);
     } catch (e) {
@@ -165,13 +166,13 @@ export function Tuner() {
       </div>
       {tuning?.notes && <p className="hint">{tuning.notes}</p>}
 
-      <div className={`readout ${state ?? 'idle'}`}>
+      <div className={`readout ${state ?? 'idle'} ${reading && !reading.live ? 'held' : ''}`}>
         <div className="note" style={target !== undefined ? { color: colours.pc(pitchClass(target), settings.home) } : undefined}>
           {target !== undefined ? names.pitch(target) : '–'}
         </div>
         {target !== undefined && settings.naming !== 'letters' && <div className="alt">{letters.pitch(target)}</div>}
-        <div className="cents">{reading ? `${reading.cents > 0 ? '+' : ''}${reading.cents.toFixed(1)} ¢` : running ? 'Play a note' : 'Tap Start to listen'}</div>
-        {view === 'needle' ? <Needle cents={reading?.cents ?? null} /> : <Strobe cents={reading?.cents ?? null} />}
+        <div className="cents">{reading ? `${reading.cents > 0 ? '+' : ''}${reading.cents.toFixed(1)} ¢${reading.live ? '' : ' · last heard'}` : running ? 'Play a note' : 'Tap Start to listen'}</div>
+        {view === 'needle' ? <Needle cents={reading?.cents ?? null} /> : <Strobe cents={reading?.live ? reading.cents : null} />}
         <div className="level" aria-label="Input level">
           <span style={{ width: `${Math.min(100, Math.sqrt(level) * 200)}%` }} />
         </div>

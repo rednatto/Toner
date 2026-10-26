@@ -2,12 +2,12 @@
 
 A private music teaching and helper app for guitar and voice. It listens while you play or sing, tells you what you did, explains why it sounds the way it does, and (later) suggests where to go next.
 
-This is phase 1: the shared foundations plus three tools you can use today.
+This is phase 1: the shared foundations plus the tools you can use today.
 
-- **Tuner**: tunings grouped by style (standard, rock and metal drop tunings, slide and blues open tunings, folk and fingerstyle, jazz and experimental), custom tunings typed as letters, bass and ukulele profiles, A4 calibration, auto / chromatic / per-string targets, needle or strobe display, and a plucked or drone reference tone per string.
-- **Metronome**: tap tempo, any time signature with groupings such as 2+2+3, a per-beat accent editor, subdivisions with swing, a speed trainer that steps the tempo every few bars, silent bars for testing your own time, and strumming practice: pick a pattern (or write your own) and the beat display becomes a lane of down, up, chuck, knock and bass strokes, with stroke sounds. Sound and lights share the audio clock.
-- **Library**: chords and scales with Z12 facts (notes, steps, prime form, interval content, symmetry, function from home), ranked fingerings for the current tuning and capo, the whole neck, modes and diatonic chords, a strumming pattern library (23 patterns from campfire to funk sixteenths, Bo Diddley and bossa), a find-by-notes clock, and a transposer that suggests the easiest capo.
-- **Latency test**: plays clicks and listens for them, to measure the device's round-trip delay before the play-along guide is built.
+- **Tuner**: tunings grouped by style (standard, rock and metal drop tunings, slide and blues open tunings, folk and fingerstyle, jazz and experimental), custom tunings typed as letters, bass and ukulele profiles, A4 calibration, auto / chromatic / per-string targets, needle or strobe display, and a plucked or drone reference tone per string. It follows a note as it fades and keeps the last reading on screen (dimmed) after the string stops.
+- **Practice** (metronome): tap tempo, any time signature with groupings such as 2+2+3, a per-beat accent editor, subdivisions with swing, a speed trainer that steps the tempo every few bars, silent bars for testing your own time, strumming practice (the beat display becomes a lane of down, up, chuck, knock and bass strokes, every bar of a longer pattern on screen), and chord changes: pick a progression (or type one in roman numerals) and the chart lights the chord now with diagrams for the chord now and the one coming, optionally sounding the chords through the strumming pattern. Sound and lights share the audio clock.
+- **Library**: chords and scales with Z12 facts (notes, steps, prime form, interval content, symmetry, function from home) on the semitone clock and the circle of fifths, ranked fingerings for the current tuning and capo, the whole neck, modes and diatonic chords; every chord from home with its roman numeral, sortable from inside (home) to outside (tense, chromatic); a chord progression library (pop, blues, jazz, flamenco, Irish and Celtic, folk) to hear or practise; a strumming pattern library (40 patterns from campfire to funk, flamenco rumba and soleá, jigs and reels, polska and rachenitsa); a find-by-notes clock; and a transposer that suggests the easiest capo.
+- **Latency test**: plays clicks and listens for them, to measure the device's round-trip delay, and saves it for this device so play-along timing can subtract it.
 
 ## How notes are named
 
@@ -24,7 +24,8 @@ Colours come from a scheme (`apps/web/src/visual/schemes.ts`). The visual langua
 ```
 packages/theory      Instrument-neutral theory engine (TypeScript, pure, tested)
                      pitch, pcset (D12 symmetries), chords, scales, key and function,
-                     tonnetz (P/L/R), voice leading, notation, rhythm, song format, note events
+                     tonnetz (P/L/R), voice leading, notation, rhythm, song format, note events,
+                     progressions written in roman numerals from home
 packages/instrument  The only code that knows about strings: tunings, fretboard, fingerings, strumming patterns
 crates/dsp           Rust pitch detector (YIN), built to WebAssembly with a tiny C ABI
 apps/web             React PWA: tuner, metronome, library, latency test

@@ -5,6 +5,10 @@ import { useSettings } from '../settings';
  * The Z12 clock: twelve pitch classes round a circle with home at the top.
  * Members are filled with their scheme colour and joined as a polygon, so a
  * set's shape (and its symmetry) is visible at a glance. Optionally clickable.
+ *
+ * In semitone order neighbours are a semitone apart; in fifths order (the
+ * circle of fifths, 0 7 2 9 4 …) they are a fifth apart, so keys and scales
+ * become compact arcs and related chords sit side by side.
  */
 export function PcClock({
   pcs,
@@ -12,21 +16,24 @@ export function PcClock({
   onToggle,
   size = 180,
   label,
+  order = 'semitones',
 }: {
   pcs: PitchClass[];
   root?: PitchClass;
   onToggle?: (pc: PitchClass) => void;
   size?: number;
   label?: string;
+  order?: 'semitones' | 'fifths';
 }) {
   const { settings, names, colours } = useSettings();
   const home = settings.home;
   const R = 70;
+  const place = (pc: PitchClass) => (order === 'fifths' ? mod12(mod12(pc - home) * 7) : mod12(pc - home));
   const pos = (pc: PitchClass, r = R) => {
-    const a = (mod12(pc - home) * 30 - 90) * (Math.PI / 180);
+    const a = (place(pc) * 30 - 90) * (Math.PI / 180);
     return [r * Math.cos(a), r * Math.sin(a)] as const;
   };
-  const members = [...new Set(pcs.map(mod12))].sort((a, b) => mod12(a - home) - mod12(b - home));
+  const members = [...new Set(pcs.map(mod12))].sort((a, b) => place(a) - place(b));
   const poly = members.map((pc) => pos(pc).join(',')).join(' ');
   return (
     <svg className="pc-clock" viewBox="-100 -100 200 200" width={size} height={size} role="img" aria-label={label ?? `Notes ${members.map((p) => names.pc(p)).join(' ')}`}>
@@ -60,5 +67,22 @@ export function PcClock({
         );
       })}
     </svg>
+  );
+}
+
+/** The same notes on the semitone clock and on the circle of fifths, side by side. */
+export function PcClocks(props: Omit<Parameters<typeof PcClock>[0], 'order'>) {
+  const size = props.size ?? 180;
+  return (
+    <div className="clocks">
+      <figure>
+        <PcClock {...props} size={size} />
+        <figcaption>Semitones</figcaption>
+      </figure>
+      <figure>
+        <PcClock {...props} size={size} order="fifths" />
+        <figcaption>Circle of fifths</figcaption>
+      </figure>
+    </div>
   );
 }

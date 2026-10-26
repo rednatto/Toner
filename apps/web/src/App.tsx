@@ -9,7 +9,7 @@ import { SCHEMES } from './visual/schemes';
 
 const PAGES = {
   tuner: { title: 'Tuner', render: () => <Tuner /> },
-  metronome: { title: 'Metronome', render: () => <Metronome /> },
+  practice: { title: 'Practice', render: () => <Metronome /> },
   library: { title: 'Library', render: () => <Library /> },
   latency: { title: 'Latency', render: () => <Latency /> },
 } as const;
@@ -17,6 +17,7 @@ type Page = keyof typeof PAGES;
 
 function pageFromHash(): Page {
   const h = window.location.hash.slice(1);
+  if (h === 'metronome') return 'practice';
   return h in PAGES ? (h as Page) : 'tuner';
 }
 

@@ -14,6 +14,7 @@ import {
   modes,
   parseChordSymbol,
   primeForm,
+  romanNumeral,
   scalePcs,
   scalesContaining,
   scaleSteps,
@@ -26,23 +27,18 @@ import {
   type PitchClass,
   type Scale,
 } from '@toner/theory';
-import { generateVoicings, instrument, withCapo, type Voicing } from '@toner/instrument';
+import { generateVoicings, withCapo, type Voicing } from '@toner/instrument';
 import { resumeAudio } from '../audio/context';
 import { pluck } from '../audio/synth';
-import { useSettings } from '../settings';
+import { useSettings, useStrings } from '../settings';
 import { ChordDiagram } from './ChordDiagram';
 import { Fretboard } from './Fretboard';
-import { PcClock } from './PcClock';
+import { OverviewView } from './OverviewView';
+import { PcClocks } from './PcClock';
+import { ProgressionView } from './ProgressionView';
 import { StrumView } from './StrumView';
 
-type Tab = 'chords' | 'scales' | 'strums' | 'find' | 'transpose';
-
-function useStrings() {
-  const { settings } = useSettings();
-  const profile = instrument(settings.instrument);
-  const tuning = profile.tunings.find((t) => t.id === settings.tuning) ?? profile.tunings[0]!;
-  return { profile, tuning };
-}
+type Tab = 'chords' | 'overview' | 'progressions' | 'scales' | 'strums' | 'find' | 'transpose';
 
 async function strum(strings: number[], v: Voicing, a4: number) {
   const ctx = await resumeAudio();
@@ -52,7 +48,7 @@ async function strum(strings: number[], v: Voicing, a4: number) {
   });
 }
 
-const TAB_LABEL: Record<Tab, string> = { chords: 'Chords', scales: 'Scales', strums: 'Strumming', find: 'Find by notes', transpose: 'Transpose' };
+const TAB_LABEL: Record<Tab, string> = { chords: 'Chords', overview: 'Chords from home', progressions: 'Progressions', scales: 'Scales', strums: 'Strumming', find: 'Find by notes', transpose: 'Transpose' };
 
 export function Library() {
   const [tab, setTab] = useState<Tab>('chords');
@@ -61,7 +57,7 @@ export function Library() {
   return (
     <section className="page library">
       <div className="seg tabs" role="tablist">
-        {(['chords', 'scales', 'strums', 'find', 'transpose'] as const).map((t) => (
+        {(['chords', 'overview', 'progressions', 'scales', 'strums', 'find', 'transpose'] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} aria-pressed={tab === t} onClick={() => setTab(t)}>
             {TAB_LABEL[t]}
           </button>
@@ -90,6 +86,15 @@ export function Library() {
           }}
         />
       )}
+      {tab === 'overview' && (
+        <OverviewView
+          onChord={(c) => {
+            setChord(c);
+            setTab('chords');
+          }}
+        />
+      )}
+      {tab === 'progressions' && <ProgressionView />}
       {tab === 'strums' && <StrumView />}
       {tab === 'transpose' && <TransposeView />}
     </section>
@@ -142,10 +147,10 @@ function ChordView({ chord, onChange }: { chord: Chord; onChange: (c: Chord) => 
       </div>
 
       <div className="detail">
-        <PcClock pcs={pcs} root={chord.root} />
+        <PcClocks pcs={pcs} root={chord.root} size={170} />
         <div className="facts">
           <h2>
-            {names.chord(chord)} {settings.naming !== 'letters' && <small>{letters.chord(chord)}</small>}
+            <span className="roman">{home.roman}</span> {names.chord(chord)} {settings.naming !== 'letters' && <small>{letters.chord(chord)}</small>}
           </h2>
           <p className="muted">{q.name}</p>
           <table>
@@ -240,7 +245,7 @@ function ScaleView({ scale, onChange, onChord }: { scale: Scale; onChange: (s: S
         ))}
       </div>
       <div className="detail">
-        <PcClock pcs={pcs} root={scale.root} />
+        <PcClocks pcs={pcs} root={scale.root} size={170} />
         <div className="facts">
           <h2>
             {names.scale(scale)} {settings.naming !== 'letters' && <small>{letters.scale(scale)}</small>}
@@ -291,7 +296,7 @@ function ScaleView({ scale, onChange, onChord }: { scale: Scale; onChange: (s: S
                 <button key={c.degree} onClick={() => onChord(c.chord!)}>
                   <b>{names.chord(c.chord)}</b>
                   <small>
-                    {mod12(c.root - scale.root)} · {triadFamily(c.chord.quality)}
+                    <span className="roman">{romanNumeral(c.chord, { home: scale.root, mode: 'major' })}</span> · {mod12(c.root - scale.root)} · {triadFamily(c.chord.quality)}
                   </small>
                 </button>
               ) : (
@@ -320,7 +325,7 @@ function FindView({ onChord, onScale }: { onChord: (c: Chord) => void; onScale: 
     <div className="view">
       <p className="hint">Tap notes on the clock. Optionally say which one is lowest.</p>
       <div className="detail">
-        <PcClock pcs={pcs} root={bass ?? undefined} onToggle={toggle} size={240} />
+        <PcClocks pcs={pcs} root={bass ?? undefined} onToggle={toggle} size={210} />
         <div className="facts">
           <label>
             Lowest note
