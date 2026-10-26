@@ -5,8 +5,8 @@ A private music teaching and helper app for guitar and voice. It listens while y
 This is phase 1: the shared foundations plus three tools you can use today.
 
 - **Tuner**: tunings grouped by style (standard, rock and metal drop tunings, slide and blues open tunings, folk and fingerstyle, jazz and experimental), custom tunings typed as letters, bass and ukulele profiles, A4 calibration, auto / chromatic / per-string targets, needle or strobe display, and a plucked or drone reference tone per string.
-- **Metronome**: tap tempo, any time signature with groupings such as 2+2+3, a per-beat accent editor, subdivisions with swing, a speed trainer that steps the tempo every few bars, and silent bars for testing your own time. Sound and lights share the audio clock.
-- **Library**: chords and scales with Z12 facts (notes, steps, prime form, interval content, symmetry, function from home), ranked fingerings for the current tuning and capo, the whole neck, modes and diatonic chords, a find-by-notes clock, and a transposer that suggests the easiest capo.
+- **Metronome**: tap tempo, any time signature with groupings such as 2+2+3, a per-beat accent editor, subdivisions with swing, a speed trainer that steps the tempo every few bars, silent bars for testing your own time, and strumming practice: pick a pattern (or write your own) and the beat display becomes a lane of down, up, chuck, knock and bass strokes, with stroke sounds. Sound and lights share the audio clock.
+- **Library**: chords and scales with Z12 facts (notes, steps, prime form, interval content, symmetry, function from home), ranked fingerings for the current tuning and capo, the whole neck, modes and diatonic chords, a strumming pattern library (23 patterns from campfire to funk sixteenths, Bo Diddley and bossa), a find-by-notes clock, and a transposer that suggests the easiest capo.
 - **Latency test**: plays clicks and listens for them, to measure the device's round-trip delay before the play-along guide is built.
 
 ## How notes are named
@@ -25,7 +25,7 @@ Colours come from a scheme (`apps/web/src/visual/schemes.ts`). The visual langua
 packages/theory      Instrument-neutral theory engine (TypeScript, pure, tested)
                      pitch, pcset (D12 symmetries), chords, scales, key and function,
                      tonnetz (P/L/R), voice leading, notation, rhythm, song format, note events
-packages/instrument  The only code that knows about strings: tunings, fretboard, fingerings
+packages/instrument  The only code that knows about strings: tunings, fretboard, fingerings, strumming patterns
 crates/dsp           Rust pitch detector (YIN), built to WebAssembly with a tiny C ABI
 apps/web             React PWA: tuner, metronome, library, latency test
 ```

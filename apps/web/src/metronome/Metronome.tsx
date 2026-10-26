@@ -339,7 +339,7 @@ export function Metronome() {
         {strumError && <p className="error">{strumError}</p>}
         {s.strum?.notes && <p className="hint">{s.strum.notes}</p>}
         <p className="hint">
-          ↓ down · ↑ up · ✕ chuck (muted) · ● knock on the body · B bass note · faint arrows are rests where the hand keeps moving. Custom: D U X x K B -, with &gt; for an accent and | between bars.
+          ↓ down · ↑ up · ✕ chuck (muted) · ● knock on the body · B bass note · faint arrows are rests where the hand keeps moving · gold is accented. Custom: D U X x K B -, with &gt; for an accent and | between bars.
         </p>
       </fieldset>
 

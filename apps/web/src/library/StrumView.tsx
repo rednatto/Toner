@@ -12,7 +12,7 @@ export function StrumView() {
   };
   return (
     <div className="view">
-      <p className="hint">↓ down · ↑ up · ✕ chuck (muted) · ● knock on the body · B bass note · faint arrows are rests where the hand keeps moving. Bold strokes are accented.</p>
+      <p className="hint">↓ down · ↑ up · ✕ chuck (muted) · ● knock on the body · B bass note · faint arrows are rests where the hand keeps moving. Gold strokes are accented.</p>
       {styles.map((style) => (
         <section key={style}>
           <h3>{style}</h3>
