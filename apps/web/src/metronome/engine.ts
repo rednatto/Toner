@@ -7,7 +7,7 @@
  * scheduled click is also queued for the display, which shows it when the
  * output clock reaches it (so the light matches what you hear).
  */
-import { clickBuffer, playBuffer } from '../audio/synth';
+import { clickBuffer, playBuffer, strokeBuffer } from '../audio/synth';
 import { barDuration, clicksForBar, isBarMuted, tempoForBar, type Click, type MetronomeSettings } from './plan';
 
 export interface ScheduledClick extends Click {
@@ -82,15 +82,26 @@ export class MetronomeEngine {
       const time = this.barStart + click.offset;
       if (time >= horizon) break;
       const muted = isBarMuted(s, this.bar);
-      if (!muted && click.level !== 0) {
-        const [freq, gain] = SOUND[String(click.level)]!;
-        const src = playBuffer(this.ctx, clickBuffer(this.ctx, freq, gain), time, this.output);
-        this.sources.add(src);
-        src.onended = () => this.sources.delete(src);
+      if (!muted) {
+        const strokes = s.strum && s.strumSounds;
+        // With stroke sounds on, the strokes replace the subdivision ticks and the beat clicks soften.
+        if (click.level !== 0 && !(strokes && click.level === 'sub')) {
+          const [freq, gain] = SOUND[String(click.level)]!;
+          this.play(clickBuffer(this.ctx, freq, strokes ? gain * 0.45 : gain), time);
+        }
+        if (strokes && click.step && click.step.stroke !== '-') {
+          this.play(strokeBuffer(this.ctx, click.step.stroke, click.step.accent), time);
+        }
       }
       this.queue.push({ ...click, time, bar: this.bar, bpm: tempoForBar(s, this.bar), muted });
       this.index++;
     }
+  }
+
+  private play(buf: AudioBuffer, time: number): void {
+    const src = playBuffer(this.ctx, buf, time, this.output);
+    this.sources.add(src);
+    src.onended = () => this.sources.delete(src);
   }
 
   /** Clicks that have reached the speakers since the last call. */

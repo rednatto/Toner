@@ -68,3 +68,63 @@ export function playBuffer(ctx: AudioContext, buf: AudioBuffer, when: number, de
   src.start(when);
   return src;
 }
+
+const strokeCache = new WeakMap<AudioContext, Map<string, AudioBuffer>>();
+
+/**
+ * Percussive stand-ins for strumming strokes, rendered once per context:
+ * strums are a short burst of a few detuned strings (an open E minor shape),
+ * down strokes starting from the low strings and up strokes from the high;
+ * chucks are a damped noise click, knocks a low woody thump, bass a single
+ * low string.
+ */
+export function strokeBuffer(ctx: AudioContext, stroke: 'D' | 'U' | 'X' | 'x' | 'K' | 'B', accent = false): AudioBuffer {
+  let cache = strokeCache.get(ctx);
+  if (!cache) strokeCache.set(ctx, (cache = new Map()));
+  const key = stroke + (accent ? '!' : '');
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const sr = ctx.sampleRate;
+  const gain = accent ? 1 : 0.7;
+  const seconds = stroke === 'D' || stroke === 'U' ? 0.35 : stroke === 'B' ? 0.5 : 0.08;
+  const len = Math.floor(sr * seconds);
+  const buf = ctx.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+  let seed = 12345;
+  const noise = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return (seed / 2 ** 32) * 2 - 1;
+  };
+  if (stroke === 'D' || stroke === 'U') {
+    // E minor open: E2 B2 E3 G3 B3 E4.
+    const freqs = [82.41, 123.47, 164.81, 196.0, 246.94, 329.63];
+    const order = stroke === 'D' ? freqs : [...freqs].reverse();
+    const strings = stroke === 'D' ? order : order.slice(0, 4);
+    strings.forEach((f, i) => {
+      const start = Math.floor(i * 0.009 * sr);
+      for (let n = start; n < len; n++) {
+        const t = (n - start) / sr;
+        const env = Math.exp(-t * (stroke === 'D' ? 9 : 14));
+        d[n]! += (gain * 0.22 * env * (Math.sin(2 * Math.PI * f * t) + 0.4 * Math.sin(4 * Math.PI * f * t))) as number;
+      }
+    });
+    for (let n = 0; n < Math.floor(0.03 * sr); n++) d[n]! += gain * 0.15 * noise() * Math.exp(-n / (0.006 * sr));
+  } else if (stroke === 'X' || stroke === 'x') {
+    for (let n = 0; n < len; n++) {
+      const t = n / sr;
+      d[n] = gain * 0.6 * noise() * Math.exp(-t * 70) + gain * 0.2 * Math.sin(2 * Math.PI * 180 * t) * Math.exp(-t * 60);
+    }
+  } else if (stroke === 'K') {
+    for (let n = 0; n < len; n++) {
+      const t = n / sr;
+      d[n] = gain * (0.8 * Math.sin(2 * Math.PI * 120 * t * (1 - t * 3)) * Math.exp(-t * 45) + 0.15 * noise() * Math.exp(-t * 200));
+    }
+  } else {
+    for (let n = 0; n < len; n++) {
+      const t = n / sr;
+      d[n] = gain * 0.5 * Math.exp(-t * 6) * (Math.sin(2 * Math.PI * 82.41 * t) + 0.5 * Math.sin(4 * Math.PI * 82.41 * t) + 0.2 * Math.sin(6 * Math.PI * 82.41 * t));
+    }
+  }
+  cache.set(key, buf);
+  return buf;
+}

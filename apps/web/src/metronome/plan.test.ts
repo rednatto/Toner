@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { strumPattern } from '@toner/instrument';
 import { barDuration, clicksForBar, isBarMuted, tempoForBar, type MetronomeSettings } from './plan';
 
 const base: MetronomeSettings = {
@@ -9,6 +10,8 @@ const base: MetronomeSettings = {
   swing: 0,
   trainer: { enabled: false, target: 100, step: 5, everyBars: 2, then: 'hold' },
   gap: { enabled: false, play: 3, mute: 1 },
+  strum: null,
+  strumSounds: true,
 };
 
 describe('metronome plan', () => {
@@ -44,5 +47,15 @@ describe('metronome plan', () => {
   it('mutes gap bars', () => {
     const s = { ...base, gap: { enabled: true, play: 3, mute: 1 } };
     expect([0, 1, 2, 3, 4, 7].map((b) => isBarMuted(s, b))).toEqual([false, false, false, true, false, true]);
+  });
+
+  it('walks a multi-bar strumming pattern', () => {
+    const s = { ...base, subdivision: 2 as const, strum: strumPattern('boDiddley')! };
+    const bar0 = clicksForBar(s, 0).map((c) => c.step!.stroke).join('');
+    const bar1 = clicksForBar(s, 1).map((c) => c.step!.stroke).join('');
+    const bar2 = clicksForBar(s, 2).map((c) => c.stepIndex);
+    expect(bar0).toBe('D--D--D-');
+    expect(bar1).toBe('--D-D---');
+    expect(bar2[0]).toBe(0);
   });
 });

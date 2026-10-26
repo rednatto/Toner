@@ -33,8 +33,9 @@ import { useSettings } from '../settings';
 import { ChordDiagram } from './ChordDiagram';
 import { Fretboard } from './Fretboard';
 import { PcClock } from './PcClock';
+import { StrumView } from './StrumView';
 
-type Tab = 'chords' | 'scales' | 'find' | 'transpose';
+type Tab = 'chords' | 'scales' | 'strums' | 'find' | 'transpose';
 
 function useStrings() {
   const { settings } = useSettings();
@@ -51,6 +52,8 @@ async function strum(strings: number[], v: Voicing, a4: number) {
   });
 }
 
+const TAB_LABEL: Record<Tab, string> = { chords: 'Chords', scales: 'Scales', strums: 'Strumming', find: 'Find by notes', transpose: 'Transpose' };
+
 export function Library() {
   const [tab, setTab] = useState<Tab>('chords');
   const [chord, setChord] = useState<Chord>({ root: 0, quality: 'maj' });
@@ -58,9 +61,9 @@ export function Library() {
   return (
     <section className="page library">
       <div className="seg tabs" role="tablist">
-        {(['chords', 'scales', 'find', 'transpose'] as const).map((t) => (
+        {(['chords', 'scales', 'strums', 'find', 'transpose'] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} aria-pressed={tab === t} onClick={() => setTab(t)}>
-            {t === 'chords' ? 'Chords' : t === 'scales' ? 'Scales' : t === 'find' ? 'Find by notes' : 'Transpose'}
+            {TAB_LABEL[t]}
           </button>
         ))}
       </div>
@@ -87,6 +90,7 @@ export function Library() {
           }}
         />
       )}
+      {tab === 'strums' && <StrumView />}
       {tab === 'transpose' && <TransposeView />}
     </section>
   );

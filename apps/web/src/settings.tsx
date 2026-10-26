@@ -14,9 +14,11 @@ export interface Settings {
   instrument: string;
   tuning: string;
   a4: number;
+  /** Strumming pattern id practised in the metronome, 'custom', or '' for none. */
+  strum: string;
 }
 
-const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440 };
+const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '' };
 const KEY = 'toner.settings';
 
 function load(): Settings {
