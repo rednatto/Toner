@@ -64,12 +64,15 @@ export function Metronome() {
   const [customProg, setCustomProg] = useState('I V vi IV');
   const [perBar, setPerBar] = useState<1 | 2 | null>(null);
   const [chordSound, setChordSound] = useState(true);
+  /** Chord in focus while stopped; playback starts from it. */
+  const [focus, setFocus] = useState(0);
+  const [startChord, setStartChord] = useState(0);
   const { progression: prog, error: progError } = usePracticeProgression(customProg, perBar);
   const settingsRef = useRef(s);
   settingsRef.current = {
     ...s,
     chords: prog
-      ? { count: prog.chords.length, perBar: prog.perBar, voices: chordSound ? prog.chords.map((c) => c.voicing?.pitches ?? []) : null, a4: settings.a4 }
+      ? { count: prog.chords.length, perBar: prog.perBar, start: startChord, voices: chordSound ? prog.chords.map((c) => c.voicing?.pitches ?? []) : null, a4: settings.a4 }
       : null,
   };
   const engine = useRef<MetronomeEngine | null>(null);
@@ -132,10 +135,14 @@ export function Metronome() {
     if (engine.current?.running) {
       engine.current.stop();
       setRunning(false);
+      // Stopping leaves the chord that was sounding in focus, to look at or start again from.
+      if (now?.chord !== undefined) setFocus(now.chord);
       setNow(null);
       return;
     }
     const ctx = await resumeAudio();
+    setStartChord(focus);
+    settingsRef.current = { ...settingsRef.current, chords: settingsRef.current.chords && { ...settingsRef.current.chords, start: focus } };
     engine.current ??= new MetronomeEngine(ctx, () => settingsRef.current);
     engine.current.volume = volume;
     engine.current.start();
@@ -196,7 +203,7 @@ export function Metronome() {
   return (
     <section className="page metronome">
       <div className={`beat-display ${now?.muted ? 'muted' : ''}`}>
-        {prog && <ChordLane progression={prog} now={now} running={running} />}
+        {prog && <ChordLane progression={prog} now={now} running={running} focus={focus} onFocus={setFocus} />}
         {s.strum ? (
           <StrumLane pattern={s.strum} now={running ? now : null} />
         ) : (
@@ -327,6 +334,7 @@ export function Metronome() {
               onChange={(id) => {
                 set({ progression: id });
                 setPerBar(null);
+                setFocus(0);
               }}
             />
           </label>

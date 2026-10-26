@@ -69,4 +69,9 @@ describe('metronome plan', () => {
     expect(at(1, 2)).toBe('2! 2 0! 0');
     expect(clicksForBar({ ...base, timeSignature: { beats: 3, unit: 4 }, accents: [3, 1, 1], chords: { ...chords, perBar: 2 } }, 0).map((c) => c.chord)).toEqual([0, 0, 1]);
   });
+
+  it('starts the progression from any chord', () => {
+    const chords = { count: 4, perBar: 1 as const, start: 2, voices: null, a4: 440 };
+    expect([0, 1, 2, 3].map((bar) => clicksForBar({ ...base, chords }, bar)[0]!.chord)).toEqual([2, 3, 0, 1]);
+  });
 });

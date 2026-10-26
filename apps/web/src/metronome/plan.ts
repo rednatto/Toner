@@ -49,6 +49,8 @@ export interface ChordTrack {
   count: number;
   /** One change per bar, or two (the second on the middle beat). */
   perBar: 1 | 2;
+  /** Chord to start from (0-based), so practice can begin anywhere in the progression. */
+  start?: number;
   /** Pitches to sound for each chord (a voicing on the current instrument), or null for silent changes. */
   voices: number[][] | null;
   a4: number;
@@ -99,7 +101,7 @@ export const halfBar = (beats: number) => Math.ceil(beats / 2);
 
 /** Index into the progression for a beat of a bar. */
 export function chordAt(track: ChordTrack, beats: number, bar: number, beat: number): number {
-  const slot = bar * track.perBar + (track.perBar === 2 && beat >= halfBar(beats) ? 1 : 0);
+  const slot = (track.start ?? 0) + bar * track.perBar + (track.perBar === 2 && beat >= halfBar(beats) ? 1 : 0);
   return slot % track.count;
 }
 

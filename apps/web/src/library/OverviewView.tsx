@@ -19,16 +19,18 @@ const SCOPE_LABEL: Record<Scope, string> = { key: 'In the key', borrowed: '+ bor
  * at rest to the most tense and outside the key.
  */
 export function OverviewView({ onChord }: { onChord: (c: Chord) => void }) {
-  const { settings, names, colours } = useSettings();
+  const { settings, names, colours, also } = useSettings();
   const [mode, setMode] = useState<Mode>('major');
-  const [set, setSet] = useState<SetId>('triads');
+  const [sets, setSets] = useState<SetId[]>(['triads']);
+  // Families add to each other; the last one can't be turned off.
+  const toggleSet = (k: SetId) => setSets((xs) => (xs.includes(k) ? (xs.length > 1 ? xs.filter((x) => x !== k) : xs) : [...xs, k]));
   const [scope, setScope] = useState<Scope>('borrowed');
   const [sort, setSort] = useState<'degree' | 'tension'>('tension');
   const key = { home: settings.home, mode };
   const rows = useMemo(() => {
     const out = [];
     for (let offset = 0; offset < 12; offset++) {
-      for (const quality of SETS[set]) {
+      for (const quality of (Object.keys(SETS) as SetId[]).filter((k) => sets.includes(k)).flatMap((k) => SETS[k])) {
         const chord = { root: mod12(settings.home + offset), quality };
         const a = analyzeChord(chord, key);
         if (scope === 'key' && !a.diatonic) continue;
@@ -37,7 +39,7 @@ export function OverviewView({ onChord }: { onChord: (c: Chord) => void }) {
       }
     }
     return sort === 'tension' ? out.sort((x, y) => x.tension - y.tension || x.a.offset - y.a.offset) : out;
-  }, [settings.home, mode, set, scope, sort]);
+  }, [settings.home, mode, sets, scope, sort]);
   const max = Math.max(1, ...rows.map((r) => r.tension));
 
   return (
@@ -52,7 +54,7 @@ export function OverviewView({ onChord }: { onChord: (c: Chord) => void }) {
         </div>
         <div className="seg" role="group" aria-label="Chords">
           {(Object.keys(SETS) as SetId[]).map((k) => (
-            <button key={k} aria-pressed={set === k} onClick={() => setSet(k)}>
+            <button key={k} aria-pressed={sets.includes(k)} onClick={() => toggleSet(k)}>
               {SET_LABEL[k]}
             </button>
           ))}
@@ -74,14 +76,16 @@ export function OverviewView({ onChord }: { onChord: (c: Chord) => void }) {
         </div>
       </div>
       <p className="hint">
-        Roman numerals count from home on the major scale (♭III, ♭VI, ♭VII are the minor side). Inside → outside orders by the chord's job (home, away, tension, outside), notes outside the key, and its own
+        Triads, sevenths and colour chords can be shown together: tap a family to add or remove it. Roman numerals count from home on the major scale (♭III, ♭VI, ♭VII are the minor side). Inside → outside orders by the chord's job (home, away, tension, outside), notes outside the key, and its own
         clashes (semitones and tritones). Tap a chord to open it.
       </p>
       <div className="overview">
         {rows.map(({ chord, a, tension, roman }) => (
           <button key={`${chord.root}:${chord.quality}`} onClick={() => onChord(chord)} style={{ borderLeftColor: colours.pc(chord.root, settings.home) }} title={`${FUNCTION_INFO[a.function].description}${a.borrowed ? ', borrowed from the parallel ' + (mode === 'major' ? 'minor' : 'major') : ''}`}>
             <span className="roman">{roman}</span>
-            <span>{names.chord(chord)}</span>
+            <span>
+              {names.chord(chord)} {also && <span className="muted">{also.chord(chord)}</span>}
+            </span>
             <small>{chordPcs(chord).map((p) => names.pc(p)).join(' ')}</small>
             <span className={`fn fn-${a.borrowed ? 'borrowed' : a.function}`}>
               {a.borrowed ? 'borrowed' : a.function}

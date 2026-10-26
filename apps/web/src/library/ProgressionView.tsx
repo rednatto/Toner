@@ -7,7 +7,7 @@ import { functionColour } from '../visual/functions';
 
 /** The chord progression library: each loop in roman numerals and in the current key, ready to hear or practise. */
 export function ProgressionView() {
-  const { settings, set, names } = useSettings();
+  const { settings, set, names, also } = useSettings();
   const { tuning, profile } = useStrings();
   const styles = [...new Set(PROGRESSIONS.map((p) => p.style))];
 
@@ -55,6 +55,7 @@ export function ProgressionView() {
                         <span key={i} className={`chart-chord fn-${fn}`} style={{ borderBottomColor: functionColour(fn) }} title={fn}>
                           <b>{degreeName(d)}</b>
                           <small>{names.chord(c)}</small>
+                          {also && <small>{also.chord(c)}</small>}
                         </span>
                       );
                     })}
