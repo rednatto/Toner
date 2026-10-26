@@ -3,6 +3,7 @@
  * trainer), which bars are silent (gap practice), and the clicks in a bar.
  */
 import type { Accent, TimeSignature } from '@toner/theory';
+import { patternBars, stepAt, type Step, type StrumPattern } from '@toner/instrument';
 
 export interface TrainerSettings {
   enabled: boolean;
@@ -35,6 +36,10 @@ export interface MetronomeSettings {
   swing: number;
   trainer: TrainerSettings;
   gap: GapSettings;
+  /** Strumming pattern to practise. Its grid should match the time signature and subdivision. */
+  strum: StrumPattern | null;
+  /** Play stroke sounds for the pattern instead of plain subdivision ticks. */
+  strumSounds: boolean;
 }
 
 export interface Click {
@@ -45,6 +50,10 @@ export interface Click {
   sub: number;
   /** Accent for a beat; subdivisions are 'sub'. */
   level: Accent | 'sub';
+  /** The strumming step on this click, when practising a pattern. */
+  step?: Step;
+  /** Position of that step in the whole (possibly multi-bar) pattern. */
+  stepIndex?: number;
 }
 
 /** Tempo for a bar (0-based) under the speed trainer. */
@@ -72,12 +81,19 @@ export function barDuration(s: MetronomeSettings, bar: number): number {
 export function clicksForBar(s: MetronomeSettings, bar: number): Click[] {
   const beat = 60 / tempoForBar(s, bar);
   const out: Click[] = [];
+  const perBar = s.timeSignature.beats * s.subdivision;
+  const barStep = s.strum ? (bar % patternBars(s.strum)) * perBar : 0;
+  const withStep = (c: Click): Click => {
+    if (!s.strum) return c;
+    const stepIndex = (barStep + c.beat * s.subdivision + c.sub) % s.strum.steps.length;
+    return { ...c, step: stepAt(s.strum, stepIndex), stepIndex };
+  };
   for (let b = 0; b < s.timeSignature.beats; b++) {
-    out.push({ offset: b * beat, beat: b, sub: 0, level: s.accents[b] ?? 1 });
+    out.push(withStep({ offset: b * beat, beat: b, sub: 0, level: s.accents[b] ?? 1 }));
     for (let k = 1; k < s.subdivision; k++) {
       let frac = k / s.subdivision;
       if (s.subdivision === 2) frac = 0.5 + s.swing * (2 / 3 - 0.5);
-      out.push({ offset: b * beat + frac * beat, beat: b, sub: k, level: 'sub' });
+      out.push(withStep({ offset: b * beat + frac * beat, beat: b, sub: k, level: 'sub' }));
     }
   }
   return out;

@@ -11,9 +11,12 @@ import {
   tempoMarking,
   type Accent,
 } from '@toner/theory';
+import { formatStrum, parseStrum, STRUM_PATTERNS, strumPattern, type StrumPattern } from '@toner/instrument';
 import { audioContext, resumeAudio } from '../audio/context';
+import { useSettings } from '../settings';
 import { MetronomeEngine, type ScheduledClick } from './engine';
 import type { MetronomeSettings } from './plan';
+import { StrumLane } from './StrumLane';
 
 const MIN_BPM = 20;
 const MAX_BPM = 320;
@@ -27,7 +30,14 @@ const INITIAL: MetronomeSettings = {
   swing: 0,
   trainer: { enabled: false, target: 120, step: 5, everyBars: 4, then: 'hold' },
   gap: { enabled: false, play: 3, mute: 1 },
+  strum: null,
+  strumSounds: true,
 };
+
+/** Metronome settings that make the grid match a pattern. */
+function settingsForPattern(p: StrumPattern): Partial<MetronomeSettings> {
+  return { timeSignature: p.timeSignature, accents: defaultAccents(p.timeSignature), subdivision: p.subdivision, swing: p.swing ?? 0, bpm: p.bpm };
+}
 
 /** Groupings of all single beats are the default for simple meters; show them as blank. */
 const groupingText = (g: number[]) => (g.every((x) => x === 1) ? '' : g.join('+'));
@@ -36,7 +46,13 @@ const ACCENT_LABEL: Record<Accent, string> = { 3: 'strong', 2: 'medium', 1: 'nor
 const NEXT_ACCENT: Record<Accent, Accent> = { 3: 2, 2: 1, 1: 0, 0: 3 };
 
 export function Metronome() {
-  const [s, setS] = useState<MetronomeSettings>(INITIAL);
+  const { settings, set } = useSettings();
+  const [s, setS] = useState<MetronomeSettings>(() => {
+    const p = strumPattern(settings.strum);
+    return p ? { ...INITIAL, ...settingsForPattern(p), strum: p } : INITIAL;
+  });
+  const [customStrum, setCustomStrum] = useState('>D - D U - U D U');
+  const [strumError, setStrumError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [grouping, setGrouping] = useState(groupingText(defaultGrouping(INITIAL.timeSignature)));
@@ -63,6 +79,43 @@ export function Metronome() {
     const g = text.trim() ? parseGrouping(text, s.timeSignature.beats) : defaultGrouping(s.timeSignature);
     if (g) update({ accents: accentsFromGrouping(g) });
   }
+
+  function chooseStrum(id: string) {
+    set({ strum: id });
+    setStrumError(null);
+    if (id === '') return update({ strum: null });
+    if (id === 'custom') return applyCustom(customStrum);
+    const p = strumPattern(id);
+    if (p) {
+      setGrouping(groupingText(defaultGrouping(p.timeSignature)));
+      update({ ...settingsForPattern(p), strum: p });
+    }
+  }
+
+  /** A custom pattern uses the metronome's current time signature and subdivision. */
+  function applyCustom(text: string, sub = s.subdivision) {
+    setCustomStrum(text);
+    const r = parseStrum(text);
+    if ('error' in r) {
+      update({ strum: null });
+      return setStrumError(r.error);
+    }
+    const perBar = s.timeSignature.beats * sub;
+    if (r.steps.length % perBar !== 0) {
+      update({ strum: null });
+      return setStrumError(`${r.steps.length} strokes don't fill whole bars of ${perBar} (${formatTimeSignature(s.timeSignature)} with ${sub} per beat).`);
+    }
+    setStrumError(null);
+    update({ strum: { id: 'custom', name: 'Custom', style: 'Custom', timeSignature: s.timeSignature, subdivision: sub, steps: r.steps, bpm: s.bpm } });
+  }
+
+  // Changing the time signature or subdivision under a pattern turns it into a custom pattern on the new grid.
+  useEffect(() => {
+    const st = s.strum;
+    if (!st || (st.subdivision === s.subdivision && formatTimeSignature(st.timeSignature) === formatTimeSignature(s.timeSignature))) return;
+    set({ strum: 'custom' });
+    applyCustom(formatStrum(st), s.subdivision);
+  }, [s.timeSignature, s.subdivision]);
 
   async function toggle() {
     if (engine.current?.running) {
@@ -132,6 +185,9 @@ export function Metronome() {
   return (
     <section className="page metronome">
       <div className={`beat-display ${now?.muted ? 'muted' : ''}`}>
+        {s.strum ? (
+          <StrumLane pattern={s.strum} now={now} />
+        ) : (
         <div className="beats" role="img" aria-label={now ? `Beat ${now.beat + 1}` : 'Stopped'}>
           {s.accents.map((a, i) => (
             <button
@@ -151,6 +207,7 @@ export function Metronome() {
             </button>
           ))}
         </div>
+        )}
         <div key={flash} className={`pulse ${now?.beat === 0 && now.sub === 0 ? 'down' : ''}`} />
         <div className="status">
           {running ? (
@@ -160,7 +217,7 @@ export function Metronome() {
               {t.enabled ? ` · ${bpmNow} BPM` : ''}
             </>
           ) : (
-            'Tap a beat to change its accent'
+            s.strum ? `${s.strum.name}: ${formatStrum(s.strum)}` : 'Tap a beat to change its accent'
           )}
         </div>
       </div>
@@ -247,6 +304,44 @@ export function Metronome() {
           <input type="range" min={0} max={1} step={0.05} value={volume} onChange={(e) => setVolume(Number(e.target.value))} />
         </label>
       </div>
+
+      <fieldset className="panel">
+        <legend>Strumming pattern</legend>
+        <div className="controls">
+          <label>
+            Pattern
+            <select value={settings.strum === 'custom' || s.strum ? settings.strum : ''} onChange={(e) => chooseStrum(e.target.value)}>
+              <option value="">None (plain metronome)</option>
+              {[...new Set(STRUM_PATTERNS.map((p) => p.style))].map((style) => (
+                <optgroup key={style} label={style}>
+                  {STRUM_PATTERNS.filter((p) => p.style === style).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+              <option value="custom">Custom…</option>
+            </select>
+          </label>
+          {settings.strum === 'custom' && (
+            <label className="grow">
+              Strokes ({formatTimeSignature(s.timeSignature)}, {s.subdivision} per beat)
+              <input value={customStrum} onChange={(e) => applyCustom(e.target.value)} aria-invalid={!!strumError} spellCheck={false} />
+            </label>
+          )}
+          {s.strum && (
+            <label className="check">
+              <input type="checkbox" checked={s.strumSounds} onChange={(e) => update({ strumSounds: e.target.checked })} /> Stroke sounds
+            </label>
+          )}
+        </div>
+        {strumError && <p className="error">{strumError}</p>}
+        {s.strum?.notes && <p className="hint">{s.strum.notes}</p>}
+        <p className="hint">
+          ↓ down · ↑ up · ✕ chuck (muted) · ● knock on the body · B bass note · faint arrows are rests where the hand keeps moving · gold is accented. Custom: D U X x K B -, with &gt; for an accent and | between bars.
+        </p>
+      </fieldset>
 
       <fieldset className="panel">
         <legend>

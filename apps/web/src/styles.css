@@ -742,3 +742,126 @@ ol.capo {
     font-size: 52px;
   }
 }
+
+/* Strumming */
+.strum-lane {
+  width: 100%;
+  max-width: 760px;
+  position: relative;
+  z-index: 1;
+}
+
+.strum-bar {
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.strum-cells {
+  display: grid;
+  gap: 4px;
+}
+
+.strum-cell {
+  display: grid;
+  justify-items: center;
+  padding: 8px 0 4px;
+  border-radius: 8px;
+  background: var(--stage);
+  border: 1px solid transparent;
+  min-width: 0;
+}
+
+.strum-cell.on-beat {
+  border-color: var(--line);
+}
+
+.strum-cell .glyph {
+  font-size: clamp(18px, 4vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.strum-cell.accent .glyph {
+  color: var(--accent);
+}
+
+.strum-cell.rest .glyph {
+  opacity: 0.18;
+  font-weight: 400;
+}
+
+.strum-cell .count {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.strum-cell.on-beat .count {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.strum-cell.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.strum-cell.on .glyph,
+.strum-cell.on .count {
+  color: var(--accent-ink);
+  opacity: 1;
+}
+
+.strum-cells.small .strum-cell {
+  padding: 4px 0;
+}
+
+.strum-cells.small .glyph {
+  font-size: 16px;
+}
+
+.strum-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 10px;
+}
+
+.strum-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.strum-card .strum-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.strum-card .strum-head small {
+  color: var(--muted);
+}
+
+.strum-card .hint {
+  margin: 0;
+}
+
+.strum-card button {
+  justify-self: start;
+}
+
+.strum-static {
+  display: grid;
+  gap: 4px;
+}
+
+label.grow {
+  flex: 1 1 260px;
+}
