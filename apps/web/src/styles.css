@@ -865,3 +865,223 @@ ol.capo {
 label.grow {
   flex: 1 1 260px;
 }
+
+.readout.held .note,
+.readout.held .cents,
+.readout.held svg.needle line[stroke='var(--fg)'] {
+  opacity: 0.55;
+}
+
+.strum-lane {
+  display: grid;
+  gap: 8px;
+}
+
+.strum-row {
+  transition: opacity 0.15s;
+}
+
+.strum-row.later {
+  opacity: 0.4;
+}
+
+.strum-row.coming {
+  opacity: 0.7;
+}
+
+/* Chord changes */
+.chord-lane {
+  width: 100%;
+  max-width: 760px;
+  display: grid;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.chord-chart {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+}
+
+.chart-bar {
+  display: flex;
+  gap: 2px;
+  padding: 0 6px;
+  border-left: 2px solid var(--line);
+}
+
+.chart-chord {
+  display: grid;
+  justify-items: center;
+  min-width: 46px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  border-bottom: 3px solid var(--line);
+  background: var(--stage);
+}
+
+.chart-chord small {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.chart-chord.next {
+  outline: 1px dashed var(--accent);
+}
+
+.chart-chord.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.chart-chord.on small {
+  color: var(--accent-ink);
+}
+
+.now-next {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  justify-items: center;
+}
+
+.now-next > div {
+  display: grid;
+  justify-items: center;
+  width: 100%;
+  max-width: 200px;
+}
+
+.now-next .coming {
+  opacity: 0.65;
+}
+
+.now-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.now-head small {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.now-head b {
+  font-size: 24px;
+}
+
+.now-next .chord-diagram {
+  width: 100%;
+  max-width: 150px;
+  margin: 0;
+}
+
+/* Harmonic function tags */
+.fn {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.fn-home .fn,
+.fn.fn-home {
+  color: var(--good);
+  border-color: var(--good);
+}
+
+.fn.fn-tension {
+  color: var(--warn);
+  border-color: var(--warn);
+}
+
+.fn.fn-outside {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.roman {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Two clocks: semitones and fifths */
+.clocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+
+.clocks figure {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+}
+
+.clocks figcaption {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Chord overview */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px;
+}
+
+.overview button {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  padding: 6px 8px;
+  text-align: left;
+  border-left: 4px solid var(--line);
+}
+
+.overview button .roman {
+  font-size: 17px;
+}
+
+.overview button small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tension-bar {
+  height: 3px;
+  width: 100%;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.tension-bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+/* Progression cards */
+.prog-chords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.prog-chords .chart-chord {
+  min-width: 40px;
+}
+
+.strum-card .actions {
+  margin: 0;
+}

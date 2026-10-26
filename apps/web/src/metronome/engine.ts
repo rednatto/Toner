@@ -7,7 +7,7 @@
  * scheduled click is also queued for the display, which shows it when the
  * output clock reaches it (so the light matches what you hear).
  */
-import { clickBuffer, playBuffer, strokeBuffer } from '../audio/synth';
+import { clickBuffer, playBuffer, pluck, strokeBuffer } from '../audio/synth';
 import { barDuration, clicksForBar, isBarMuted, tempoForBar, type Click, type MetronomeSettings } from './plan';
 
 export interface ScheduledClick extends Click {
@@ -30,6 +30,8 @@ export class MetronomeEngine {
   private index = 0;
   private queue: ScheduledClick[] = [];
   private output: GainNode;
+  /** Chord tones go through their own bus so stopping can silence notes already scheduled. */
+  private chordBus: GainNode;
   private sources = new Set<AudioBufferSourceNode>();
 
   constructor(
@@ -38,6 +40,13 @@ export class MetronomeEngine {
   ) {
     this.output = ctx.createGain();
     this.output.connect(ctx.destination);
+    this.chordBus = this.newChordBus();
+  }
+
+  private newChordBus(): GainNode {
+    const bus = this.ctx.createGain();
+    bus.connect(this.output);
+    return bus;
   }
 
   get running(): boolean {
@@ -65,6 +74,8 @@ export class MetronomeEngine {
     for (const s of this.sources) s.stop();
     this.sources.clear();
     this.queue = [];
+    this.chordBus.disconnect();
+    this.chordBus = this.newChordBus();
   }
 
   private tick(): void {
@@ -89,13 +100,25 @@ export class MetronomeEngine {
           const [freq, gain] = SOUND[String(click.level)]!;
           this.play(clickBuffer(this.ctx, freq, strokes ? gain * 0.45 : gain), time);
         }
-        if (strokes && click.step && click.step.stroke !== '-') {
+        const voices = s.chords?.voices && click.chord !== undefined ? s.chords.voices[click.chord] : undefined;
+        const stroke = click.step?.stroke;
+        // With chords sounding, strums and bass notes play the chord; chucks and knocks stay percussive.
+        const pitched = voices && voices.length > 0 && (s.strum ? stroke === 'D' || stroke === 'U' || stroke === 'B' : click.change);
+        if (pitched) this.strumChord(voices, s.strum ? stroke! : 'D', !!click.step?.accent || !!click.change, time, s.chords!.a4);
+        else if (strokes && click.step && click.step.stroke !== '-') {
           this.play(strokeBuffer(this.ctx, click.step.stroke, click.step.accent), time);
         }
       }
       this.queue.push({ ...click, time, bar: this.bar, bpm: tempoForBar(s, this.bar), muted });
       this.index++;
     }
+  }
+
+  /** Sound a chord voicing as a strum: low to high going down, the top strings high to low going up, the lowest note alone for a bass stroke. */
+  private strumChord(pitches: number[], stroke: string, accent: boolean, time: number, a4: number): void {
+    const notes = stroke === 'B' ? pitches.slice(0, 1) : stroke === 'U' ? pitches.slice(-4).reverse() : pitches;
+    const level = (accent ? 0.16 : 0.11) * (stroke === 'U' ? 0.75 : 1);
+    notes.forEach((p, i) => pluck(this.ctx, p, a4, time + i * 0.012, stroke === 'B' ? 1.2 : 0.9, this.chordBus, level));
   }
 
   private play(buf: AudioBuffer, time: number): void {

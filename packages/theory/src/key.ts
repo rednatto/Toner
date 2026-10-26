@@ -5,7 +5,7 @@
  * borrowing colour from outside.
  */
 import { chordPcs, chordQuality, type Chord } from './chords.js';
-import { has } from './pcset.js';
+import { fromPcs, has, intervalVector } from './pcset.js';
 import { relative, type PitchClass } from './pitch.js';
 import { scaleSet } from './scales.js';
 
@@ -101,6 +101,26 @@ export function analyzeChord(c: Chord, key: Key): ChordAnalysis {
   // Chromatic chords are 'outside', except those the table already reads as tension (e.g. major V in minor).
   if (!diatonic && fn !== 'tension') fn = 'outside';
   return { offset, function: fn, diatonic, borrowed, outsideTones, roman: romanNumeral(c, key) };
+}
+
+const FUNCTION_WEIGHT: Record<HarmonicFunction, number> = { home: 0, away: 1, tension: 2, outside: 3 };
+
+/**
+ * How far a chord sits from rest in a key, as one number for sorting: 0 is the
+ * home chord, larger is more tense or further outside. It adds the chord's job
+ * (home, away, tension, outside), one point per tone outside the key (half for
+ * tones borrowed from the parallel mode, whose chords count as away-to-tension)
+ * and half a point per semitone or
+ * tritone inside the chord itself.
+ */
+export function chordTension(c: Chord, key: Key): number {
+  const a = analyzeChord(c, key);
+  const iv = intervalVector(fromPcs(chordPcs(c)));
+  const own = (iv[0] + iv[5]) / 2;
+  const outside = a.outsideTones.length * (a.borrowed ? 0.5 : 1);
+  // Other home chords (vi, iii in major) stand in for home, a little less at rest.
+  const fn = a.borrowed ? 2 : FUNCTION_WEIGHT[a.function] + (a.function === 'home' && a.offset !== 0 ? 0.5 : 0);
+  return fn + outside + own;
 }
 
 /** Krumhansl–Kessler key profiles (major, minor), index 0 = tonic. */

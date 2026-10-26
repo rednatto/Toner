@@ -40,6 +40,18 @@ export interface MetronomeSettings {
   strum: StrumPattern | null;
   /** Play stroke sounds for the pattern instead of plain subdivision ticks. */
   strumSounds: boolean;
+  /** A chord progression to practise changes against, if any. */
+  chords: ChordTrack | null;
+}
+
+export interface ChordTrack {
+  /** Chords in the progression; it loops. */
+  count: number;
+  /** One change per bar, or two (the second on the middle beat). */
+  perBar: 1 | 2;
+  /** Pitches to sound for each chord (a voicing on the current instrument), or null for silent changes. */
+  voices: number[][] | null;
+  a4: number;
 }
 
 export interface Click {
@@ -54,6 +66,10 @@ export interface Click {
   step?: Step;
   /** Position of that step in the whole (possibly multi-bar) pattern. */
   stepIndex?: number;
+  /** Which chord of the progression is sounding, when practising one. */
+  chord?: number;
+  /** True on the first click of each chord. */
+  change?: boolean;
 }
 
 /** Tempo for a bar (0-based) under the speed trainer. */
@@ -78,12 +94,26 @@ export function barDuration(s: MetronomeSettings, bar: number): number {
   return (60 / tempoForBar(s, bar)) * s.timeSignature.beats;
 }
 
+/** The beat (0-based) where the second chord of a two-chord bar starts. */
+export const halfBar = (beats: number) => Math.ceil(beats / 2);
+
+/** Index into the progression for a beat of a bar. */
+export function chordAt(track: ChordTrack, beats: number, bar: number, beat: number): number {
+  const slot = bar * track.perBar + (track.perBar === 2 && beat >= halfBar(beats) ? 1 : 0);
+  return slot % track.count;
+}
+
 export function clicksForBar(s: MetronomeSettings, bar: number): Click[] {
   const beat = 60 / tempoForBar(s, bar);
   const out: Click[] = [];
   const perBar = s.timeSignature.beats * s.subdivision;
   const barStep = s.strum ? (bar % patternBars(s.strum)) * perBar : 0;
+  const track = s.chords && s.chords.count > 0 ? s.chords : null;
   const withStep = (c: Click): Click => {
+    if (track) {
+      const change = c.sub === 0 && (c.beat === 0 || (track.perBar === 2 && c.beat === halfBar(s.timeSignature.beats)));
+      c = { ...c, chord: chordAt(track, s.timeSignature.beats, bar, c.beat), change };
+    }
     if (!s.strum) return c;
     const stepIndex = (barStep + c.beat * s.subdivision + c.sub) % s.strum.steps.length;
     return { ...c, step: stepAt(s.strum, stepIndex), stepIndex };

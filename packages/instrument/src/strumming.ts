@@ -126,6 +126,23 @@ export const STRUM_PATTERNS: StrumPattern[] = [
   p('twelveEight', '12/8 slow blues', 'Blues', ts(12, 8), 1, '>D - U D - U D - U D - U', 150),
   p('boDiddley', 'Bo Diddley beat', 'Blues', ts(4, 4), 2, '>D - - D - - >D - | - - D - >D - - -', 100, { notes: 'The 3-2 clave over two bars.' }),
   p('bossa', 'Bossa nova (thumb and fingers)', 'Latin', ts(4, 4), 2, '>B - U B - U B - | B U - B - U B -', 120, { notes: 'Thumb plays the bass; U here is the fingers plucking the chord upwards.' }),
+  p('rumba', 'Rumba flamenca', 'Flamenco', ts(4, 4), 2, '>D - U >X - U >X U', 100, { notes: 'The chucks (golpes) on 2 and on the "and" of 3 drive it; play the down strokes as a quick rasgueado when you can.' }),
+  p('tangos', 'Tangos', 'Flamenco', ts(4, 4), 2, 'K - >D U >D U >D U', 100, { notes: 'Beat 1 is a tap on the top; the strums on 2, 3 and 4 carry the weight.' }),
+  p('sevillanas', 'Sevillanas', 'Flamenco', ts(3, 4), 2, '>D - K - D U', 120, { notes: 'Accented strum on 1, a golpe on 2, a quick down-up on 3.' }),
+  p('solea', 'Soleá compás', 'Flamenco', ts(12, 8), 1, 'D D >D D D >D D >D D >D D >D', 180, { notes: 'The twelve-beat cycle: accents on 3, 6, 8, 10 and 12. Count it out loud before playing. Alegrías uses the same accents, faster.' }),
+  p('buleria', 'Bulerías (from 12)', 'Flamenco', ts(12, 8), 1, '>D D D >D D D >D D >D D >D D', 240, { notes: 'The soleá accents counted from 12: the cycle starts on its strongest beat.' }),
+  p('jig', 'Jig', 'Irish and Celtic', ts(6, 8), 1, '>D U D >D U D', 240, { notes: 'Two pulses of three; the second down stroke of each group is light.' }),
+  p('slipJig', 'Slip jig', 'Irish and Celtic', ts(9, 8), 1, '>D U D >D U D >D U D', 240, { notes: 'Three pulses of three per bar.' }),
+  p('reel', 'Reel', 'Irish and Celtic', ts(4, 4), 2, 'D U >D U D U >D U', 100, { notes: 'Constant down-up with a lift on 2 and 4; keep it light under the melody.' }),
+  p('hornpipe', 'Hornpipe', 'Irish and Celtic', ts(4, 4), 2, '>D - D U >D - D U', 80, { swing: 0.6, notes: 'Dotted, swung eighths and a heavier feel than a reel.' }),
+  p('polka', 'Polka', 'Irish and Celtic', ts(2, 4), 2, '>B - D U', 120, { notes: 'Oom-pah: bass note, then a quick chord.' }),
+  p('carter', 'Carter strum', 'Folk', ts(4, 4), 2, '>B - D U B - D U', 100, { notes: 'Thumb takes the root then the fifth (or the melody on the low strings); the strum fills in.' }),
+  p('march', 'March', 'Folk', ts(2, 4), 2, '>D - D U', 110),
+  p('cajunWaltz', 'Cajun waltz', 'Folk', ts(3, 4), 2, '>B - D U D U', 120),
+  p('polska', 'Polska', 'Folk', ts(3, 4), 2, '>D - D U >D U', 100, { notes: 'Swedish polska: weight on beats 1 and 3, never quite even.' }),
+  p('mazurka', 'Mazurka', 'Folk', ts(3, 4), 2, 'D U >D U D U', 110, { notes: 'The accent falls on 2.' }),
+  p('rachenitsa', 'Rachenitsa (7/8)', 'Folk', ts(7, 8), 1, '>D U >D U >D U D', 280, { notes: 'Balkan 2+2+3: three uneven pulses per bar.' }),
+  p('calypso', 'Calypso', 'Folk', ts(4, 4), 2, '>D - D U - U >D U', 100, { notes: 'The campfire pattern with a push on 4; Caribbean folk and many sea songs.' }),
 ];
 
 export function strumPattern(id: string): StrumPattern | undefined {

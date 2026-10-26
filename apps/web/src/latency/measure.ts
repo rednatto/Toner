@@ -42,9 +42,15 @@ export function summarize(latencies: number[]): Summary | null {
   return { count: s.length, median: q(0.5), min: s[0]!, max: s[s.length - 1]!, iqr: q(0.75) - q(0.25) };
 }
 
-export function verdict(medianMs: number): string {
+/**
+ * What a measured round trip means for the app. A steady delay can be
+ * subtracted when judging timing, so spread matters as much as size; only
+ * hearing yourself back through the app needs the delay itself to be small.
+ */
+export function verdict(medianMs: number, spreadMs = 0): string {
+  const steady = spreadMs <= 5;
   if (medianMs < 20) return 'Excellent: feels instant.';
   if (medianMs < 35) return 'Good: fine for play-along feedback.';
-  if (medianMs < 50) return 'Usable, but timing feedback will need calibrating.';
-  return 'Too slow for real-time feedback; try wired headphones or a native build.';
+  if (steady) return 'A long but steady delay. Saved, it can be subtracted, so timing and pitch feedback still work; only hearing yourself back through the app would lag. Wired headphones or a native build would shorten it.';
+  return 'Long and unsteady: timing feedback will be rough on this device. Try wired headphones, or a native build later.';
 }
