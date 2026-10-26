@@ -19,11 +19,15 @@ export interface Settings {
   strum: string;
   /** Chord progression id practised in the metronome, 'custom', or '' for none. */
   progression: string;
+  /** Show letter names alongside numbers where there is room. */
+  alsoLetters: boolean;
+  /** Chosen fingering per chord and tuning (index into the ranked voicings), keyed by voicingKey. */
+  voicings: Record<string, number>;
   /** This device's measured round trip from the latency test, in ms (0 = not measured). */
   latencyMs: number;
 }
 
-const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '', progression: '', latencyMs: 0 };
+const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '', progression: '', latencyMs: 0, alsoLetters: false, voicings: {} };
 const KEY = 'toner.settings';
 
 function load(): Settings {
@@ -41,6 +45,8 @@ interface Ctx {
   names: Naming;
   /** Letter names, for secondary labels when the main naming is numeric. */
   letters: Naming;
+  /** Letter names to show alongside numbers, when that option is on; null otherwise. */
+  also: Naming | null;
   colours: ColourScheme;
 }
 
@@ -61,6 +67,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       set: (patch) => setSettings((s) => ({ ...s, ...patch })),
       names: new Naming({ mode: settings.naming, home: settings.home }),
       letters: new Naming({ mode: 'letters', home: settings.home }),
+      also: settings.alsoLetters && settings.naming !== 'letters' ? new Naming({ mode: 'letters', home: settings.home }) : null,
       colours: scheme(settings.scheme),
     }),
     [settings],
@@ -81,3 +88,6 @@ export function useStrings() {
   const tuning = profile.tunings.find((t) => t.id === settings.tuning) ?? profile.tunings[0]!;
   return { profile, tuning };
 }
+
+/** Key under which a chosen fingering is remembered: the same chord in the same tuning. */
+export const voicingKey = (strings: number[], root: number, quality: string) => `${strings.join(',')}|${root}:${quality}`;

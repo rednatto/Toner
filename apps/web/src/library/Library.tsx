@@ -102,7 +102,7 @@ export function Library() {
 }
 
 function RootPicker({ value, onChange, label = 'Root' }: { value: PitchClass; onChange: (pc: PitchClass) => void; label?: string }) {
-  const { settings, names, letters, colours } = useSettings();
+  const { settings, names, letters, colours, also } = useSettings();
   return (
     <div className="root-picker" role="group" aria-label={label}>
       {Array.from({ length: 12 }, (_, i) => {
@@ -110,6 +110,7 @@ function RootPicker({ value, onChange, label = 'Root' }: { value: PitchClass; on
         return (
           <button key={pc} aria-pressed={value === pc} onClick={() => onChange(pc)} title={letters.pc(pc)} style={value === pc ? { background: colours.pc(pc, settings.home) } : undefined}>
             {names.pc(pc)}
+            {also && <small>{also.pc(pc)}</small>}
           </button>
         );
       })}
@@ -223,7 +224,7 @@ function ChordView({ chord, onChange }: { chord: Chord; onChange: (c: Chord) => 
 }
 
 function ScaleView({ scale, onChange, onChord }: { scale: Scale; onChange: (s: Scale) => void; onChord: (c: Chord) => void }) {
-  const { settings, names, letters } = useSettings();
+  const { settings, names, letters, also } = useSettings();
   const { tuning, profile } = useStrings();
   const [size, setSize] = useState<3 | 4>(3);
   const t = scaleType(scale.type);
@@ -295,6 +296,7 @@ function ScaleView({ scale, onChange, onChord }: { scale: Scale; onChange: (s: S
               c.chord ? (
                 <button key={c.degree} onClick={() => onChord(c.chord!)}>
                   <b>{names.chord(c.chord)}</b>
+                  {also && <small>{also.chord(c.chord)}</small>}
                   <small>
                     <span className="roman">{romanNumeral(c.chord, { home: scale.root, mode: 'major' })}</span> · {mod12(c.root - scale.root)} · {triadFamily(c.chord.quality)}
                   </small>

@@ -103,6 +103,14 @@ export function analyzeChord(c: Chord, key: Key): ChordAnalysis {
   return { offset, function: fn, diatonic, borrowed, outsideTones, roman: romanNumeral(c, key) };
 }
 
+export type PcZone = 'key' | 'borrowed' | 'outside';
+
+/** Where a pitch class sits for a key: in its scale, borrowed from the parallel mode, or outside both. */
+export function pcZone(pc: PitchClass, key: Key): PcZone {
+  if (has(keySet(key), pc)) return 'key';
+  return has(keySet({ home: key.home, mode: key.mode === 'major' ? 'minor' : 'major' }), pc) ? 'borrowed' : 'outside';
+}
+
 const FUNCTION_WEIGHT: Record<HarmonicFunction, number> = { home: 0, away: 1, tension: 2, outside: 3 };
 
 /**

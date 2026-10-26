@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chordQuality, chordTension, degreeChord, degreeName, parseProgression, parseRoman, PROGRESSIONS } from './index.js';
+import { chordQuality, chordTension, pcZone, degreeChord, degreeName, parseProgression, parseRoman, PROGRESSIONS } from './index.js';
 
 describe('progressions', () => {
   it('reads roman numerals relative to home', () => {
@@ -54,5 +54,10 @@ describe('progressions', () => {
     expect(t(5, 'maj')).toBeLessThan(t(7, 'maj'));
     expect(t(7, 'maj')).toBeLessThan(t(7, 'dom7'));
     expect(t(7, 'dom7')).toBeLessThan(t(1, 'maj'));
+  });
+
+  it('splits the twelve notes into key, borrowed and outside', () => {
+    const zones = Array.from({ length: 12 }, (_, pc) => pcZone((pc + 2) % 12, { home: 2, mode: 'major' })[0]).join('');
+    expect(zones).toBe('kokbkkokbkbk');
   });
 });

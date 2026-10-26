@@ -56,6 +56,11 @@ export function App() {
               ))}
             </select>
           </label>
+          {settings.naming !== 'letters' && (
+            <label className="check">
+              <input type="checkbox" checked={settings.alsoLetters} onChange={(e) => set({ alsoLetters: e.target.checked })} /> + letters
+            </label>
+          )}
           <label>
             Home
             <select value={settings.home} onChange={(e) => set({ home: Number(e.target.value) })}>
