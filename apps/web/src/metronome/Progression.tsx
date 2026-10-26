@@ -98,7 +98,8 @@ export function ChordLane({
   const { settings, set, names, also } = useSettings();
   const { tuning } = useStrings();
   const n = p.chords.length;
-  const current = running && now?.chord !== undefined ? now.chord : Math.min(focus, n - 1);
+  // A click scheduled before the progression changed can name a chord the new one doesn't have; wrap it.
+  const current = running && now?.chord !== undefined ? now.chord % n : Math.min(focus, n - 1);
   const next = (current + 1) % n;
   const key = { home: settings.home, mode: p.mode };
   const bars = Math.ceil(n / p.perBar);

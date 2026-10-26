@@ -435,7 +435,7 @@ export function Metronome() {
             </button>
           </div>
         </div>
-        <p className="hint">Starts at {s.bpm} BPM and steps by {t.step} every {t.everyBars} bars. Changes apply from the next bar.</p>
+        <p className="hint">Starts at {s.bpm} BPM and steps by {t.step} every {t.everyBars} bars.</p>
       </fieldset>
 
       <fieldset className="panel">
