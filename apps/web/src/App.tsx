@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { mod12, NAMING_MODES, type NamingMode } from '@toner/theory';
+import { ErrorBoundary } from './ErrorBoundary';
 import { Latency } from './latency/Latency';
 import { Library } from './library/Library';
 import { Metronome } from './metronome/Metronome';
@@ -83,7 +84,9 @@ export function App() {
           </label>
         </div>
       </header>
-      <main>{PAGES[page].render()}</main>
+      <main>
+        <ErrorBoundary resetKey={page}>{PAGES[page].render()}</ErrorBoundary>
+      </main>
     </div>
   );
 }
