@@ -25,6 +25,8 @@ export interface Bar {
   chords: ChordEvent[];
   /** Overrides the song's time signature from this bar on within the section. */
   timeSignature?: TimeSignature;
+  /** Length in beats when the bar is not a full bar of its time signature, such as a pickup. */
+  beats?: number;
   lyrics?: string;
 }
 
@@ -95,6 +97,7 @@ export function validateSong(x: unknown): string[] {
     s.bars.forEach((b, bi) => {
       const where = `sections[${si}].bars[${bi}]`;
       if (!isObj(b) || !Array.isArray(b.chords)) return errs.push(`${where}.chords must be a list`);
+      if (b.beats !== undefined && (!isNum(b.beats) || b.beats <= 0)) errs.push(`${where}.beats must be a positive number`);
       b.chords.forEach((ce, ci) => {
         if (!isObj(ce) || !isNum(ce.beat) || !isObj(ce.chord)) return errs.push(`${where}.chords[${ci}] needs beat and chord`);
         const c = ce.chord;
@@ -170,7 +173,7 @@ export function chordTimeline(song: Song): { start: number; chord: Chord; sectio
     for (const b of s.bars) {
       if (b.timeSignature) ts = b.timeSignature;
       for (const ce of b.chords) out.push({ start: t + ce.beat, chord: ce.chord, section: s.id });
-      t += ts.beats;
+      t += b.beats ?? ts.beats;
     }
   }
   return out;

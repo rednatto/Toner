@@ -1184,3 +1184,144 @@ select {
 fieldset {
   min-width: 0;
 }
+
+/* Tunes: folk collections read in Toner's numbers and colours. */
+.tune-list {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 6px;
+}
+
+.tune-list button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 10px;
+  text-align: left;
+  padding: 8px 10px;
+}
+
+.tune-list .tune-no {
+  grid-row: span 2;
+  color: var(--muted);
+  font-family: var(--mono);
+  min-width: 3ch;
+  text-align: right;
+}
+
+.tune-list small {
+  color: var(--muted);
+}
+
+.tune h2 {
+  margin-top: 12px;
+}
+
+.tune-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 12px;
+}
+
+.tune-pcs {
+  display: flex;
+  gap: 6px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.tune-pcs span {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  min-width: 22px;
+  font-size: 13px;
+}
+
+.tune-pcs span.unused {
+  opacity: 0.35;
+}
+
+.tune-pcs i {
+  display: block;
+  width: 14px;
+  border-radius: 3px;
+}
+
+.tune-pcs small {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.tune-section h3 {
+  margin-bottom: 4px;
+}
+
+.tune-bars {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.tune-bar {
+  background: var(--stage);
+  border-left: 1px solid var(--line);
+  padding-top: 16px;
+  position: relative;
+}
+
+.tune-bar:last-child {
+  border-right: 1px solid var(--line);
+}
+
+.tune-bar.on {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.tune-bar svg {
+  display: block;
+}
+
+.tune-chords {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 16px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.tune-chords span {
+  position: absolute;
+  padding-left: 2px;
+}
+
+.tune-note-label {
+  font-size: 9px;
+  fill: oklch(0.2 0.02 270);
+  font-family: var(--mono);
+}
+
+.tune-credit {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+  font-size: 13px;
+}
+
+.tune-credit pre {
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: var(--stage);
+  padding: 10px;
+  border-radius: 8px;
+  max-height: 320px;
+  overflow: auto;
+}

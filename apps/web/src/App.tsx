@@ -6,12 +6,14 @@ import { Library } from './library/Library';
 import { Metronome } from './metronome/Metronome';
 import { useSettings } from './settings';
 import { Tuner } from './tuner/Tuner';
+import { Tunes } from './tunes/Tunes';
 import { SCHEMES } from './visual/schemes';
 
 const PAGES = {
   tuner: { title: 'Tuner', render: () => <Tuner /> },
   practice: { title: 'Practice', render: () => <Metronome /> },
   library: { title: 'Library', render: () => <Library /> },
+  tunes: { title: 'Tunes', render: () => <Tunes /> },
   latency: { title: 'Latency', render: () => <Latency /> },
 } as const;
 type Page = keyof typeof PAGES;

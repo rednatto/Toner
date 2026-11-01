@@ -1,0 +1,21 @@
+[
+  {
+    "id": "oneills",
+    "name": "O'Neill's Music of Ireland",
+    "description": "1,850 Irish airs and dance tunes collected by Francis O'Neill and published in Chicago in 1903.",
+    "file": "oneills.abc",
+    "tunes": 2009,
+    "licence": {
+      "id": "GPL-2.0-or-later",
+      "name": "GNU General Public License, version 2 or later",
+      "url": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+      "file": "LICENSES/GPL-2.0-or-later.txt"
+    },
+    "attribution": "O'Neill's Music of Ireland (1903). ABC transcriptions copyright 1997-2000 the contributors to the O'Neill's Project, used under the GNU GPL v2 or later. Each tune's transcriber is credited in its Z: field.",
+    "homepage": "https://trillian.mit.edu/~jc/music/book/ONeills/_1850/",
+    "via": {
+      "name": "the music21 corpus",
+      "url": "https://github.com/cuthbertLab/music21/tree/master/music21/corpus/oneills1850"
+    }
+  }
+]
