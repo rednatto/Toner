@@ -28,7 +28,25 @@ export interface Bar {
   /** Length in beats when the bar is not a full bar of its time signature, such as a pickup. */
   beats?: number;
   lyrics?: string;
+  /** Free text written over the music at a beat, such as "Slowly" or "cresc.". */
+  annotations?: Annotation[];
+  /** Road signs: where a repeat from the sign starts (segno, coda) or what happens at the end of this bar (fine, D.C., D.S., to coda). */
+  marks?: BarMark[];
 }
+
+export interface Annotation {
+  /** Beat within the bar, starting at 0. */
+  beat: number;
+  text: string;
+}
+
+/**
+ * segno and coda mark the start of the bar; the others act at its end:
+ * fine stops after a jump back, dc goes back to the start, ds goes back to the
+ * segno, and toCoda leaves for the coda after a jump back.
+ */
+export type BarMark = 'segno' | 'coda' | 'fine' | 'dc' | 'ds' | 'toCoda';
+export const BAR_MARKS: readonly BarMark[] = ['segno', 'coda', 'fine', 'dc', 'ds', 'toCoda'];
 
 export interface Section {
   id: string;
@@ -43,6 +61,12 @@ export interface TimedNote {
   pitch: Pitch;
   /** Optional fingering hint from a tab. Ignored by instruments without strings. */
   hint?: { string: number; fret: number };
+  /** Grace notes flicked in just before this note, in order. They take no time of their own. */
+  grace?: Pitch[];
+  /** Ornaments, articulations, bowings and dynamics by id (see ornaments.ts). An unknown one keeps its written name. */
+  marks?: string[];
+  /** Notes with the same number are under one slur: one bow, one breath, or one syllable. */
+  slur?: number;
 }
 
 export interface Part {
@@ -98,6 +122,9 @@ export function validateSong(x: unknown): string[] {
       const where = `sections[${si}].bars[${bi}]`;
       if (!isObj(b) || !Array.isArray(b.chords)) return errs.push(`${where}.chords must be a list`);
       if (b.beats !== undefined && (!isNum(b.beats) || b.beats <= 0)) errs.push(`${where}.beats must be a positive number`);
+      if (b.marks !== undefined && (!Array.isArray(b.marks) || b.marks.some((m) => !BAR_MARKS.includes(m as BarMark)))) errs.push(`${where}.marks has an unknown mark`);
+      if (b.annotations !== undefined && (!Array.isArray(b.annotations) || b.annotations.some((a) => !isObj(a) || !isNum(a.beat) || typeof a.text !== 'string')))
+        errs.push(`${where}.annotations need beat and text`);
       b.chords.forEach((ce, ci) => {
         if (!isObj(ce) || !isNum(ce.beat) || !isObj(ce.chord)) return errs.push(`${where}.chords[${ci}] needs beat and chord`);
         const c = ce.chord;
@@ -119,7 +146,10 @@ export function validateSong(x: unknown): string[] {
       x.parts.forEach((p, pi) => {
         if (!isObj(p) || !Array.isArray(p.notes)) return errs.push(`parts[${pi}].notes must be a list`);
         p.notes.forEach((n, ni) => {
-          if (!isObj(n) || !isNum(n.start) || !isNum(n.duration) || !isNum(n.pitch)) errs.push(`parts[${pi}].notes[${ni}] needs start, duration and pitch`);
+          if (!isObj(n) || !isNum(n.start) || !isNum(n.duration) || !isNum(n.pitch)) return errs.push(`parts[${pi}].notes[${ni}] needs start, duration and pitch`);
+          if (n.grace !== undefined && (!Array.isArray(n.grace) || !n.grace.every(isNum))) errs.push(`parts[${pi}].notes[${ni}].grace must be a list of pitches`);
+          if (n.marks !== undefined && (!Array.isArray(n.marks) || !n.marks.every((m) => typeof m === 'string'))) errs.push(`parts[${pi}].notes[${ni}].marks must be a list of names`);
+          return undefined;
         });
         return undefined;
       });
@@ -151,7 +181,11 @@ export function transposeSong(song: Song, n: number): Song {
   if (song.parts) {
     out.parts = song.parts.map((p) => ({
       ...p,
-      notes: p.notes.map(({ hint: _hint, ...note }) => ({ ...note, pitch: note.pitch + n })),
+      notes: p.notes.map(({ hint: _hint, ...note }) => {
+        const out: TimedNote = { ...note, pitch: note.pitch + n };
+        if (note.grace) out.grace = note.grace.map((g) => g + n);
+        return out;
+      }),
     }));
   }
   return out;
