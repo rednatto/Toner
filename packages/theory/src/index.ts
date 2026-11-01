@@ -10,3 +10,4 @@ export * from './rhythm.js';
 export * from './song.js';
 export * from './events.js';
 export * from './progressions.js';
+export * from './abc.js';
