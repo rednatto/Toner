@@ -8,9 +8,11 @@
  * This reads the subset folk collections use: one voice, notes and rests with
  * lengths, accidentals, ties, broken rhythm, tuplets, chords in brackets,
  * chord symbols, repeats, endings and inline key, metre and length changes.
- * Grace notes, decorations, slurs and annotations are read past. Anything it
- * cannot read is skipped with a warning, so a tune with a stray character
- * still comes through.
+ * Grace notes, ornaments, articulations, bowings, dynamics and slurs are kept
+ * on the notes; free text becomes annotations on the bar; road signs (segno,
+ * coda, Fine, D.C., D.S.) become bar marks and are followed in the arrangement.
+ * Anything it cannot read is skipped with a warning, so a tune with a stray
+ * character still comes through.
  */
 import type { Chord } from './chords.js';
 import type { Mode } from './key.js';
@@ -18,7 +20,75 @@ import { parseChordSymbol, parseNoteName } from './notation.js';
 import { mod12, type PitchClass } from './pitch.js';
 import { parseTimeSignature, type TimeSignature } from './rhythm.js';
 import { scaleType } from './scales.js';
-import { SONG_FORMAT, SONG_VERSION, type Bar, type Section, type Song, type TimedNote } from './song.js';
+import { SONG_FORMAT, SONG_VERSION, type Annotation, type Bar, type BarMark, type Section, type Song, type TimedNote } from './song.js';
+
+/** Decoration names (!name! or +name+) and their mark ids. */
+const DECORATIONS: Record<string, string> = {
+  trill: 'trill',
+  tr: 'trill',
+  roll: 'roll',
+  '~': 'roll',
+  staccato: 'staccato',
+  '.': 'staccato',
+  tenuto: 'tenuto',
+  accent: 'accent',
+  emphasis: 'accent',
+  '>': 'accent',
+  fermata: 'fermata',
+  invertedfermata: 'fermata',
+  mordent: 'mordent',
+  lowermordent: 'mordent',
+  uppermordent: 'uppermordent',
+  pralltriller: 'uppermordent',
+  turn: 'turn',
+  invertedturn: 'turn',
+  slide: 'slide',
+  breath: 'breath',
+  upbow: 'upbow',
+  downbow: 'downbow',
+  ppp: 'ppp',
+  pp: 'pp',
+  p: 'p',
+  mp: 'mp',
+  mf: 'mf',
+  f: 'f',
+  ff: 'ff',
+  fff: 'fff',
+  sfz: 'sfz',
+};
+/** The one-character decorations of ABC 2.1, plus J and R as most collections use them. */
+const SHORT_DECORATIONS: Record<string, string> = {
+  '.': 'staccato',
+  '~': 'roll',
+  H: 'fermata',
+  L: 'accent',
+  M: 'mordent',
+  P: 'uppermordent',
+  T: 'trill',
+  u: 'upbow',
+  v: 'downbow',
+  J: 'slide',
+  R: 'roll',
+};
+/** Quoted text that older collections use in place of decorations. */
+const TEXT_MARKS: Record<string, string> = { '~': 'roll', tr: 'trill', '>': 'accent', H: 'fermata', ...Object.fromEntries(['ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff', 'sfz'].map((d) => [d, d])) };
+
+/** Road signs written as text or decorations. */
+export function barMarkOf(text: string): BarMark | null {
+  const t = text
+    .trim()
+    .replace(/^\(|\)$/g, '')
+    .trim()
+    .toLowerCase();
+  if (/^d\.?\s?c\.?(\s|$)|^da ?capo/.test(t)) return 'dc';
+  if (/^d\.?\s?s\.?(\s|$)|^dal ?segno/.test(t)) return 'ds';
+  if (/^(fine|end)\.?$/.test(t)) return 'fine';
+  if (/^(segno|sign|s)$/.test(t)) return 'segno';
+  if (/^(to ?coda|dacoda)$/.test(t)) return 'toCoda';
+  if (/^coda$/.test(t)) return 'coda';
+  return null;
+}
+const END_MARKS = new Set<BarMark>(['fine', 'dc', 'ds', 'toCoda']);
 
 /** Header fields kept from the tune, for display and attribution. */
 export interface AbcInfo {
@@ -187,11 +257,17 @@ interface WrittenNote {
   /** Length in whole notes. */
   length: number;
   pitch: number;
+  grace?: number[];
+  marks?: string[];
+  /** Slur number as written; renumbered per pass in play order. */
+  slur?: number;
 }
 
 interface WrittenBar {
   notes: WrittenNote[];
   chords: { at: number; chord: Chord }[];
+  annotations: { at: number; text: string }[];
+  marks: BarMark[];
   /** Length in whole notes as written. */
   length: number;
   meter: TimeSignature;
@@ -297,7 +373,7 @@ export function parseAbc(text: string): AbcTune {
   const strains: Strain[] = [];
   let strain: Strain = { body: [], first: [], second: [], repeat: false };
   let ending = 0;
-  let bar: WrittenBar = { notes: [], chords: [], length: 0, meter, end: '' };
+  let bar: WrittenBar = { notes: [], chords: [], annotations: [], marks: [], length: 0, meter, end: '' };
   let barAccidentals = new Map<string, number>();
   let pendingChord = null as Chord | null;
   /** The last note or bracket chord placed, for broken rhythm and ties. */
@@ -307,6 +383,12 @@ export function parseAbc(text: string): AbcTune {
   let broken = 1;
   let tuplet = null as { ratio: number; left: number } | null;
   let stopped = false;
+  let pendingGrace: number[] = [];
+  let pendingMarks: string[] = [];
+  let pendingText: string[] = [];
+  const slurs: number[] = [];
+  let slurCount = 0;
+  let lastBar = null as WrittenBar | null;
 
   const closeStrain = () => {
     if (strain.body.length || strain.first.length || strain.second.length) strains.push(strain);
@@ -316,13 +398,14 @@ export function parseAbc(text: string): AbcTune {
 
   const closeBar = (line: string) => {
     bar.end = line;
-    const empty = bar.notes.length === 0 && bar.chords.length === 0 && bar.length === 0;
+    const empty = bar.notes.length === 0 && bar.chords.length === 0 && bar.length === 0 && !bar.marks.length && !bar.annotations.length;
     if (!empty) {
+      lastBar = bar;
       // A first ending closed by :| with no second ending after it: the strain is over.
       if (ending === -1) closeStrain();
       (ending === 1 ? strain.first : ending === 2 ? strain.second : strain.body).push(bar);
     }
-    bar = { notes: [], chords: [], length: 0, meter, end: '' };
+    bar = { notes: [], chords: [], annotations: [], marks: [], length: 0, meter, end: '' };
     barAccidentals = new Map();
     // A chord symbol carries over the bar line until a note claims it.
   };
@@ -354,6 +437,8 @@ export function parseAbc(text: string): AbcTune {
       if (--tuplet.left <= 0) tuplet = null;
     }
     const placed: WrittenNote[] = [];
+    for (const text of pendingText) bar.annotations.push({ at: bar.length, text });
+    pendingText = [];
     if (accept) {
       for (const pitch of pitches) {
         const tied = tieFrom.find((n) => n.pitch === pitch);
@@ -361,11 +446,16 @@ export function parseAbc(text: string): AbcTune {
           tied.length += length;
           placed.push(tied);
         } else {
-          const n = { at: bar.length, length, pitch };
+          const n: WrittenNote = { at: bar.length, length, pitch };
+          if (pendingGrace.length && !placed.length) n.grace = pendingGrace;
+          if (pendingMarks.length) n.marks = [...new Set(pendingMarks)];
+          if (slurs.length) n.slur = slurs.at(-1)!;
           bar.notes.push(n);
           placed.push(n);
         }
       }
+      pendingGrace = [];
+      pendingMarks = [];
       if (pendingChord) {
         bar.chords.push({ at: bar.length, chord: pendingChord });
         pendingChord = null;
@@ -417,6 +507,25 @@ export function parseAbc(text: string): AbcTune {
     return (octave + 1) * 12 + NATURAL[li]! + alter;
   };
 
+  /** A road sign, a mark on the next note, or free text, from a quoted string or a decoration. */
+  const textOrMark = (text: string, decoration: boolean, lineEnd = false) => {
+    const sign = barMarkOf(text);
+    if (sign) {
+      // Signs that act at the end of a bar, written after its bar line at the end of a line, belong to the bar before.
+      const empty = bar.notes.length === 0 && bar.length === 0;
+      const target = empty && lineEnd && END_MARKS.has(sign) && lastBar ? lastBar : bar;
+      if (!target.marks.includes(sign)) target.marks.push(sign);
+      return;
+    }
+    const mark = decoration ? DECORATIONS[text] : TEXT_MARKS[text.trim()];
+    if (mark) pendingMarks.push(mark);
+    else if (decoration) {
+      // Hairpins and other spans have no note to sit on; keep them as text.
+      if (/[()]$/.test(text)) pendingText.push(text.replace(/[()]$/, '').replace(/^</, 'cresc').replace(/^>/, 'dim'));
+      else pendingMarks.push(text);
+    } else if (text.trim()) pendingText.push(text.trim());
+  };
+
   const readLength = (s: string, at: number): { units: number; next: number } => {
     const m = /^(\d*)(\/*)(\d*)/.exec(s.slice(at))!;
     let units = m[1] ? Number(m[1]) : 1;
@@ -436,6 +545,7 @@ export function parseAbc(text: string): AbcTune {
       continue;
     }
     line = line.replace(/%.*$/, '');
+    const atLineEnd = (from: number) => /^[\s|\]:\\]*$/.test(line.slice(from));
     let p = 0;
     while (p < line.length && !stopped) {
       const ch = line[p]!;
@@ -467,26 +577,44 @@ export function parseAbc(text: string): AbcTune {
         const close = line.indexOf('"', p + 1);
         const body = line.slice(p + 1, close < 0 ? undefined : close);
         p = close < 0 ? line.length : close + 1;
-        if (/^[_^<>@]/.test(body)) continue;
+        if (TEXT_MARKS[body.trim()] || barMarkOf(body)) {
+          textOrMark(body, false, atLineEnd(p));
+          continue;
+        }
+        // A leading ^ _ < > @ places free text; anything else that is not a chord symbol is free text too.
+        if (/^[_^<>@]/.test(body)) {
+          textOrMark(body.slice(1), false, atLineEnd(p));
+          continue;
+        }
         const sym = body.replace(/^\(|\)$/g, '').split(/[\s(]/)[0]!;
         const c = parseChordSymbol(sym);
-        // Anything that is not a chord symbol is an annotation, such as "D.C." or "Fine".
         if (c) pendingChord = c;
+        else textOrMark(body, false);
         continue;
       }
       // Decorations.
       if (ch === '!' || ch === '+') {
         const close = line.indexOf(ch, p + 1);
-        p = close < 0 ? p + 1 : close + 1;
+        const name = close < 0 ? '' : line.slice(p + 1, close);
+        // Older files use a lone ! as a line break, so only a known decoration or a plain lower-case word counts.
+        if (name && name.length <= 24 && (name in DECORATIONS || barMarkOf(name) || /^([a-z][a-zA-Z]*[()]?|[<>][()]|[0-5])$/.test(name))) {
+          textOrMark(name, true, atLineEnd(close + 1));
+          p = close + 1;
+        } else p++;
         continue;
       }
-      if ('.~HLMOPSTuvJR'.includes(ch)) {
+      if (ch in SHORT_DECORATIONS || ch === 'S' || ch === 'O') {
+        if (ch === 'S') textOrMark('segno', false);
+        else if (ch === 'O') textOrMark('coda', false);
+        else pendingMarks.push(SHORT_DECORATIONS[ch]!);
         p++;
         continue;
       }
-      // Grace notes.
+      // Grace notes, before the note they lead into. A slash (acciaccatura) is read the same.
       if (ch === '{') {
         const close = line.indexOf('}', p);
+        const inner = line.slice(p + 1, close < 0 ? undefined : close);
+        for (const g of inner.matchAll(/(\^\^|\^|__|_|=)?([A-Ga-g])([',]*)/g)) pendingGrace.push(pitchOf(g[1] ?? '', g[2]!, g[3]!));
         p = close < 0 ? line.length : close + 1;
         continue;
       }
@@ -578,7 +706,18 @@ export function parseAbc(text: string): AbcTune {
         p = nextBar < 0 ? line.length : nextBar;
         continue;
       }
-      if (' \t\\`$()*y]'.includes(ch)) {
+      // Slurs.
+      if (ch === '(') {
+        slurs.push(++slurCount);
+        p++;
+        continue;
+      }
+      if (ch === ')') {
+        slurs.pop();
+        p++;
+        continue;
+      }
+      if (' \t\\`$*y]'.includes(ch)) {
         p++;
         continue;
       }
@@ -587,47 +726,113 @@ export function parseAbc(text: string): AbcTune {
     }
   }
   if (stopped) warn('only the first voice was read');
+  // Text with no note after it belongs at the end of the last bar.
+  if (pendingText.length) {
+    const target = bar.notes.length || bar.length || !lastBar ? bar : lastBar;
+    for (const text of pendingText) target.annotations.push({ at: target.length, text });
+  }
   closeBar('|]');
   closeStrain();
 
-  // Build sections and the arrangement from the strains.
+  // Sections: each strain's body and endings, split where a road sign falls inside one.
   const beatsPer = (wholes: number) => wholes * songMeter.unit;
   const sections: Section[] = [];
-  const arrangement: string[] = [];
+  const written = new Map<string, WrittenBar[]>();
   const toBar = (wb: WrittenBar): Bar => {
     const b: Bar = { chords: wb.chords.map((c) => ({ beat: round(beatsPer(c.at)), chord: c.chord })) };
     if (wb.meter.beats !== songMeter.beats || wb.meter.unit !== songMeter.unit) b.timeSignature = wb.meter;
     if (Math.abs(wb.length - fullBar(wb.meter)) > 1e-6 || wb.meter.unit !== songMeter.unit) b.beats = round(beatsPer(wb.length));
+    if (wb.annotations.length) b.annotations = wb.annotations.map((a): Annotation => ({ beat: round(beatsPer(a.at)), text: a.text }));
+    if (wb.marks.length) b.marks = [...wb.marks];
     return b;
   };
-  const written = new Map<string, WrittenBar[]>();
-  const add = (id: string, name: string, bars: WrittenBar[]) => {
-    if (!bars.length) return;
-    if (!written.has(id)) {
-      written.set(id, bars);
-      sections.push({ id, name, bars: bars.map(toBar) });
+  /** Split a run of bars into sections; returns their ids in order. */
+  const chunk = (id: string, name: string, bars: WrittenBar[]): string[] => {
+    const parts: WrittenBar[][] = [];
+    for (const wb of bars) {
+      const cur = parts.at(-1);
+      const prev = cur?.at(-1);
+      const startNew = !cur || wb.marks.includes('segno') || wb.marks.includes('coda') || (prev && prev.marks.some((x) => END_MARKS.has(x)));
+      if (startNew) parts.push([wb]);
+      else cur.push(wb);
     }
-    arrangement.push(id);
+    return parts.map((bs, i) => {
+      const cid = i === 0 ? id : `${id}.${i + 1}`;
+      written.set(cid, bs);
+      sections.push({ id: cid, name: i === 0 ? name : `${name}, continued`, bars: bs.map(toBar) });
+      return cid;
+    });
   };
-  strains.forEach((s, si) => {
+  const firstPass: string[] = [];
+  const noRepeats: string[] = [];
+  strains.forEach((st, si) => {
     const letter = si < 26 ? String.fromCharCode(65 + si) : `S${si + 1}`;
-    add(letter, `Part ${letter}`, s.body);
-    if (s.first.length || s.second.length) {
-      add(`${letter}1`, `Part ${letter}, first ending`, s.first);
-      if (s.repeat) add(letter, `Part ${letter}`, s.body);
-      add(`${letter}2`, `Part ${letter}, second ending`, s.second);
-    } else if (s.repeat) add(letter, `Part ${letter}`, s.body);
+    const body = chunk(letter, `Part ${letter}`, st.body);
+    const first = chunk(`${letter}1`, `Part ${letter}, first ending`, st.first);
+    const second = chunk(`${letter}2`, `Part ${letter}, second ending`, st.second);
+    if (first.length || second.length) {
+      firstPass.push(...body, ...first);
+      if (st.repeat) firstPass.push(...body);
+      firstPass.push(...second);
+    } else {
+      firstPass.push(...body);
+      if (st.repeat) firstPass.push(...body);
+    }
+    // After a D.C. or D.S. repeats are not taken again: play through, using the last ending.
+    noRepeats.push(...body, ...(second.length ? second : first));
   });
-
-  // The melody in play order.
-  const notes: TimedNote[] = [];
-  let t = 0;
-  for (const id of arrangement) {
-    for (const wb of written.get(id)!) {
-      for (const n of wb.notes) notes.push({ start: round(t + beatsPer(n.at)), duration: round(beatsPer(n.length)), pitch: n.pitch });
-      t += beatsPer(wb.length);
+  const endsWith = (id: string, mk: BarMark) => written.get(id)!.at(-1)!.marks.includes(mk);
+  const startsWith = (id: string, mk: BarMark) => written.get(id)![0]!.marks.includes(mk);
+  // Follow the last D.C. or D.S. in the first pass: back to the start or the segno, then to Fine, or to the coda.
+  let arrangement = firstPass;
+  let jumpAt = -1;
+  firstPass.forEach((id, k) => {
+    if (endsWith(id, 'dc') || endsWith(id, 'ds')) jumpAt = k;
+  });
+  if (jumpAt >= 0) {
+    const jumpId = firstPass[jumpAt]!;
+    const ds = endsWith(jumpId, 'ds');
+    let from = ds ? noRepeats.findIndex((id) => startsWith(id, 'segno')) : 0;
+    if (from < 0) {
+      warn('D.S. without a segno; going back to the start');
+      from = 0;
+    }
+    arrangement = firstPass.slice(0, jumpAt + 1);
+    for (let k = from; k < noRepeats.length; k++) {
+      const id = noRepeats[k]!;
+      arrangement.push(id);
+      if (endsWith(id, 'fine')) break;
+      if (endsWith(id, 'toCoda')) {
+        const coda = noRepeats.findIndex((c) => startsWith(c, 'coda'));
+        if (coda > k) k = coda - 1;
+        else warn('to coda without a coda');
+        continue;
+      }
+      // Without Fine or a coda, the jump plays back to the bar that sent it.
+      if (id === jumpId) break;
     }
   }
+
+  // The melody in play order. Slurs are numbered afresh on every pass so a repeat is its own phrase.
+  const notes: TimedNote[] = [];
+  const slurIds = new Map<string, number>();
+  let t = 0;
+  arrangement.forEach((id, pass) => {
+    for (const wb of written.get(id)!) {
+      for (const n of wb.notes) {
+        const tn: TimedNote = { start: round(t + beatsPer(n.at)), duration: round(beatsPer(n.length)), pitch: n.pitch };
+        if (n.grace) tn.grace = [...n.grace];
+        if (n.marks) tn.marks = [...n.marks];
+        if (n.slur !== undefined) {
+          const k = `${pass}:${n.slur}`;
+          if (!slurIds.has(k)) slurIds.set(k, slurIds.size + 1);
+          tn.slur = slurIds.get(k)!;
+        }
+        notes.push(tn);
+      }
+      t += beatsPer(wb.length);
+    }
+  });
   notes.sort((a, b) => a.start - b.start || a.pitch - b.pitch);
 
   const quarterTempo = tempo ?? RHYTHM_TEMPO.find(([re]) => re.test(info.rhythm ?? ''))?.[1] ?? 120;
@@ -644,7 +849,7 @@ export function parseAbc(text: string): AbcTune {
   if (info.composer) song.artist = info.composer;
   song.home = headerKey.home;
   song.mode = headerKey.mode;
-  if (arrangement.join() !== sections.map((s) => s.id).join()) song.arrangement = arrangement;
+  if (arrangement.join() !== sections.map((sec) => sec.id).join()) song.arrangement = arrangement;
   if (info.book) song.source = info.book;
   if (!notes.length) warn('no notes');
   return { song, info, warnings };

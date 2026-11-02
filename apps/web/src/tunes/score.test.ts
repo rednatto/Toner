@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseAbc } from '@toner/theory';
-import { notesByBar, pcWeights, pitchRange, playedBars } from './score';
+import { marksUsed, notesByBar, pcWeights, pitchRange, playedBars } from './score';
 
 const { song } = parseAbc(`X:1
 T:Test
@@ -35,5 +35,16 @@ describe('tune layout', () => {
     const w = pcWeights(song.parts![0]!.notes);
     expect(w[7]).toBe(1 + 1 + 2 + 3); // G2 in the strain played twice, then g4 and g6 in the endings
     expect(pitchRange(song.parts![0]!.notes)).toEqual([62, 79]);
+  });
+});
+
+describe('marks used', () => {
+  it('counts marks and grace notes, most used first', () => {
+    const { song: s } = parseAbc('X:1\nT:T\nM:4/4\nL:1/8\nK:G\n~A ~B .c {g}d |');
+    expect(marksUsed(s.parts![0]!.notes)).toEqual([
+      { id: 'roll', count: 2 },
+      { id: 'staccato', count: 1 },
+      { id: 'grace', count: 1 },
+    ]);
   });
 });

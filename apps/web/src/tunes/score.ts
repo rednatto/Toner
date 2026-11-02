@@ -54,6 +54,16 @@ export function notesByBar(song: Song): Map<string, TimedNote[]> {
   return out;
 }
 
+/** Each mark used in the tune, with how many notes carry it, most used first. */
+export function marksUsed(notes: TimedNote[]): { id: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const n of notes) for (const m of n.marks ?? []) counts.set(m, (counts.get(m) ?? 0) + 1);
+  const graces = notes.filter((n) => n.grace?.length).length;
+  const out = [...counts].map(([id, count]) => ({ id, count }));
+  if (graces) out.push({ id: 'grace', count: graces });
+  return out.sort((a, b) => b.count - a.count);
+}
+
 /** How long each pitch class sounds, as a 12-number histogram. */
 export function pcWeights(notes: TimedNote[]): number[] {
   const w = new Array<number>(12).fill(0);
@@ -61,14 +71,16 @@ export function pcWeights(notes: TimedNote[]): number[] {
   return w;
 }
 
-/** Lowest and highest pitch, for scaling the note lanes. */
+/** Lowest and highest pitch, grace notes included, for scaling the note lanes. */
 export function pitchRange(notes: TimedNote[]): [number, number] {
   if (!notes.length) return [60, 72];
   let lo = Infinity;
   let hi = -Infinity;
   for (const n of notes) {
-    lo = Math.min(lo, n.pitch);
-    hi = Math.max(hi, n.pitch);
+    for (const p of [n.pitch, ...(n.grace ?? [])]) {
+      lo = Math.min(lo, p);
+      hi = Math.max(hi, p);
+    }
   }
   return [lo, Math.max(hi, lo + 7)];
 }

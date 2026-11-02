@@ -63,10 +63,36 @@ describe('ABC notes', () => {
     ]);
   });
 
-  it('reads past grace notes, decorations, slurs and annotations', () => {
+  it('keeps grace notes, decorations, slurs and annotations without moving the beat', () => {
     const r = parseAbc(tune('{g}A ~B !trill!c (de) "^Slowly"f .g "_p"a |'));
-    expect(r.song.parts![0]!.notes.map((n) => n.pitch)).toEqual([69, 71, 72, 74, 76, 77, 79, 81]);
+    const notes = r.song.parts![0]!.notes;
+    expect(notes.map((n) => [n.start, n.pitch])).toEqual([69, 71, 72, 74, 76, 77, 79, 81].map((p, i) => [i * 0.5, p]));
+    expect(notes[0]!.grace).toEqual([79]);
+    expect(notes.map((n) => n.marks ?? [])).toEqual([[], ['roll'], ['trill'], [], [], [], ['staccato'], ['p']]);
+    expect(notes[3]!.slur).toBe(1);
+    expect(notes[4]!.slur).toBe(1);
+    expect(notes[5]!.slur).toBeUndefined();
+    expect(r.song.sections[0]!.bars[0]!.annotations).toEqual([{ beat: 2.5, text: 'Slowly' }]);
     expect(r.warnings).toEqual([]);
+  });
+
+  it('reads the decorations older collections write as text', () => {
+    const notes = parseAbc(tune('"~"A "tr"B ">"c "H"d "f"e "cresc."f |')).song.parts![0]!.notes;
+    expect(notes.map((n) => n.marks ?? [])).toEqual([['roll'], ['trill'], ['accent'], ['fermata'], ['f'], []]);
+  });
+
+  it('keeps grace accidentals and grace groups', () => {
+    const notes = parseAbc(tune('{^fg}A {/B}c |')).song.parts![0]!.notes;
+    expect(notes.map((n) => n.grace)).toEqual([[78, 79], [71]]);
+  });
+
+  it('keeps an unknown decoration by name and hairpins as text', () => {
+    const r = parseAbc(tune('!wedge!A !crescendo(!B c !crescendo)!d |'));
+    expect(r.song.parts![0]!.notes[0]!.marks).toEqual(['wedge']);
+    expect(r.song.sections[0]!.bars[0]!.annotations).toEqual([
+      { beat: 0.5, text: 'crescendo' },
+      { beat: 1.5, text: 'crescendo' },
+    ]);
   });
 
   it('follows inline key and metre changes', () => {
@@ -146,6 +172,34 @@ A|:"D"d2 fd "G"B2 gB|"D"A2 fA "A7"e2 ce|"D"d2 fd "G"B2 g2|1"A"f2 e2 d3 A:|2"A"f2
       [7, 'The Test Reel', 'D', 'reel'],
       [8, 'Another', 'Em', 'jig'],
     ]);
+  });
+
+  it('follows D.C. al Fine', () => {
+    const { song } = parseAbc(tune('|:A4 B4|"Fine"c8:|d4 e4|f8 "D.C."|]'));
+    expect(song.sections.map((s) => s.id)).toEqual(['A', 'B']);
+    expect(song.sections[0]!.bars[1]!.marks).toEqual(['fine']);
+    expect(song.sections[1]!.bars[1]!.marks).toEqual(['dc']);
+    // A twice, B, then back to the start without the repeat, stopping at Fine.
+    expect(song.arrangement).toEqual(['A', 'A', 'B', 'A']);
+  });
+
+  it('follows D.S. al Coda, splitting sections at the signs', () => {
+    const { song } = parseAbc(tune('A8|S B8|"to coda"c8|d8 !D.S.!||O e8|f8|]'));
+    expect(song.sections.map((s) => s.id)).toEqual(['A', 'A.2', 'A.3', 'B']);
+    expect(song.arrangement).toEqual(['A', 'A.2', 'A.3', 'A.2', 'B']);
+    const starts = song.parts![0]!.notes.map((n) => n.pitch);
+    expect(starts).toEqual([69, 71, 72, 74, 71, 72, 76, 77]);
+  });
+
+  it('puts a sign written after the final bar line on the bar before', () => {
+    const { song } = parseAbc(tune('A8|B8| "D.C."'));
+    expect(song.sections[0]!.bars.at(-1)!.marks).toEqual(['dc']);
+    expect(song.arrangement).toEqual(['A', 'A']);
+  });
+
+  it('numbers slurs afresh on each pass of a repeat', () => {
+    const notes = parseAbc(tune('|:(AB) c2 d4:|')).song.parts![0]!.notes;
+    expect(notes.filter((n) => n.slur).map((n) => n.slur)).toEqual([1, 1, 2, 2]);
   });
 
   it('warns about what it skips instead of failing', () => {

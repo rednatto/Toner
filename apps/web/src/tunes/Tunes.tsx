@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { detectKey, indexAbc, Naming, parseAbc, type AbcTune, type TimedNote } from '@toner/theory';
+import { detectKey, indexAbc, markInfo, Naming, parseAbc, performNotes, scalePcs, type AbcTune, type Bar, type BarMark, type TimedNote } from '@toner/theory';
 import { resumeAudio } from '../audio/context';
 import { pluck } from '../audio/synth';
 import { useSettings } from '../settings';
-import { notesByBar, pcWeights, pitchRange, playedBars, type PlacedBar, type Source } from './score';
+import { marksUsed, notesByBar, pcWeights, pitchRange, playedBars, type PlacedBar, type Source } from './score';
 
 const base = `${import.meta.env.BASE_URL}tunes/`;
 const PAGE = 100;
@@ -133,7 +133,7 @@ export function Tunes() {
 }
 
 function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onBack: () => void }) {
-  const { settings, colours, letters } = useSettings();
+  const { settings, colours } = useSettings();
   const parsed = useMemo((): AbcTune | { error: string } => {
     try {
       return parseAbc(entry.text);
@@ -143,6 +143,7 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
   }, [entry]);
   const [speed, setSpeed] = useState(0.7);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [ornaments, setOrnaments] = useState(true);
   const [playingBar, setPlayingBar] = useState<number | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
   useEffect(() => () => stopRef.current?.(), []);
@@ -152,7 +153,9 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
   const home = song.home ?? 0;
   // Numbers count from the tune's own home, so a tune reads the same in any key.
   const names = new Naming({ mode: settings.naming, home });
-  const also = settings.alsoLetters && settings.naming !== 'letters' ? new Naming({ mode: 'letters', home }) : null;
+  // Letters spelled for the tune's key, so a tune in B♭ reads B♭ rather than A♯.
+  const letters = new Naming({ mode: 'letters', home });
+  const also = settings.alsoLetters && settings.naming !== 'letters' ? letters : null;
   const notes = song.parts?.[0]?.notes ?? [];
   const weights = pcWeights(notes);
   const maxWeight = Math.max(...weights, 1e-9);
@@ -161,6 +164,7 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
   const bars = playedBars(song);
   const byBar = notesByBar(song);
   const playing = playingBar === null ? null : bars[playingBar];
+  const used = marksUsed(notes);
 
   async function play() {
     stopRef.current?.();
@@ -171,11 +175,16 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
     let raf = 0;
     const end = bars.length ? bars.at(-1)!.start + bars.at(-1)!.beats : 0;
     // Schedule a little ahead on the audio clock, so stopping is quick and timing stays tight.
+    // Ornaments, grace notes, articulation and dynamics as a player would sound them; grace notes last about 60 ms.
+    const sounding = ornaments
+      ? performNotes(notes, scalePcs({ root: home, type: info.scale }), 0.06 / secPerBeat)
+      : notes.map((n) => ({ start: n.start, duration: n.duration, pitch: n.pitch, level: 1 }));
     const tick = () => {
       const horizon = ctx.currentTime + 0.4;
-      while (next < notes.length && t0 + notes[next]!.start * secPerBeat < horizon) {
-        const n: TimedNote = notes[next++]!;
-        pluck(ctx, n.pitch, settings.a4, t0 + n.start * secPerBeat, Math.max(0.25, n.duration * secPerBeat * 1.4), ctx.destination, 0.16);
+      while (next < sounding.length && t0 + sounding[next]!.start * secPerBeat < horizon) {
+        const n = sounding[next++]!;
+        const when = Math.max(ctx.currentTime, t0 + n.start * secPerBeat);
+        pluck(ctx, n.pitch, settings.a4, when, Math.max(0.12, n.duration * secPerBeat * 1.4), ctx.destination, 0.16 * n.level);
       }
     };
     const timer = window.setInterval(tick, 100);
@@ -252,7 +261,26 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
           <input type="range" min={0.3} max={1.2} step={0.05} value={speed} onChange={(e) => setSpeed(Number(e.target.value))} />
         </label>
         <span className="muted">{Math.round(song.tempo * speed)} beats a minute</span>
+        {used.length > 0 && (
+          <label className="check">
+            <input type="checkbox" checked={ornaments} onChange={(e) => setOrnaments(e.target.checked)} /> Play ornaments
+          </label>
+        )}
       </div>
+
+      {used.length > 0 && (
+        <ul className="tune-marks" aria-label="Ornaments and markings in this tune">
+          {used.map(({ id, count }) => {
+            const info = id === 'grace' ? { symbol: '♪', name: 'grace notes', description: 'Quick notes flicked in just before the beat, drawn small.' } : markInfo(id);
+            return (
+              <li key={id}>
+                <b className={`mark-sym kind-${id === 'grace' ? 'ornament' : markInfo(id).kind}`}>{info.symbol}</b> {info.name} <small>×{count}</small>
+                <span className="muted"> {info.description}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {song.sections.map((s) => (
         <section key={s.id} className="tune-section">
@@ -270,6 +298,7 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
                   names={names}
                   colour={(pc) => colours.pc(pc, home)}
                   on={!!playing && playing.section === s.id && playing.index === i}
+                  bar={bar}
                   chordLabels={bar.chords.map((c) => ({ beat: c.beat, label: names.chord(c.chord) }))}
                 />
               );
@@ -302,6 +331,19 @@ function TuneView({ entry, source, onBack }: { entry: Entry; source: Source; onB
 /** Bar width per whole note, so a bar of 2/4 is half as wide as one of 4/4; narrower on a phone so two bars fit a row. */
 const pxPerWhole = () => Math.round(Math.min(200, Math.max(120, (window.innerWidth - 40) / 2)));
 const LANE_H = 64;
+/** Room above the notes for ornament signs and slurs, and below for dynamics. */
+const TOP = 14;
+const BOTTOM = 11;
+
+const SIGN_LABEL: Record<BarMark, string> = { segno: '𝄋', coda: '𝄌', fine: 'Fine', dc: 'D.C.', ds: 'D.S.', toCoda: 'To 𝄌' };
+const SIGN_TITLE: Record<BarMark, string> = {
+  segno: 'Sign: D.S. comes back here',
+  coda: 'Coda: "to coda" jumps here',
+  fine: 'Fine: the tune ends here after going back',
+  dc: 'D.C.: go back to the start',
+  ds: 'D.S.: go back to the sign',
+  toCoda: 'To coda: after going back, jump to the coda from here',
+};
 
 function BarView(props: {
   placed: PlacedBar | undefined;
@@ -311,34 +353,91 @@ function BarView(props: {
   names: Naming;
   colour: (pc: number) => string;
   on: boolean;
+  bar: Bar;
   chordLabels: { beat: number; label: string }[];
 }) {
-  const { placed, unit, notes, range, names, colour, on, chordLabels } = props;
+  const { placed, unit, notes, range, names, colour, on, bar, chordLabels } = props;
   const beats = placed?.beats ?? unit;
   const w = Math.max(28, Math.round((beats / unit) * pxPerWhole()));
   const [lo, hi] = range;
   const step = (LANE_H - 14) / (hi - lo + 1);
-  const y = (p: number) => LANE_H - 2 - (p - lo + 1) * step;
+  const y = (p: number) => TOP + LANE_H - 2 - (p - lo + 1) * step;
+  const h = Math.max(6, step + 2);
+  const xAt = (beat: number) => (beat / beats) * w;
+  // Slurs: one arc over each group of notes in this bar that share a slur.
+  const slurs = new Map<number, TimedNote[]>();
+  for (const n of notes) if (n.slur !== undefined) slurs.set(n.slur, [...(slurs.get(n.slur) ?? []), n]);
+  const startSigns = (bar.marks ?? []).filter((m) => m === 'segno' || m === 'coda');
+  const endSigns = (bar.marks ?? []).filter((m) => m !== 'segno' && m !== 'coda');
+  const texts = bar.annotations ?? [];
   return (
-    <div className={`tune-bar${on ? ' on' : ''}`} style={{ width: w }}>
+    <div className={`tune-bar${on ? ' on' : ''}${texts.length || startSigns.length || endSigns.length ? ' has-text' : ''}`} style={{ width: w }}>
+      {(texts.length > 0 || startSigns.length > 0 || endSigns.length > 0) && (
+        <div className="tune-texts">
+          {startSigns.map((m) => (
+            <span key={m} className="sign" style={{ left: 0 }} title={SIGN_TITLE[m]}>
+              {SIGN_LABEL[m]}
+            </span>
+          ))}
+          {texts.map((a, i) => (
+            <span key={i} style={{ left: xAt(a.beat) + (startSigns.length ? 14 : 0) }}>
+              {a.text}
+            </span>
+          ))}
+          {endSigns.map((m) => (
+            <span key={m} className="sign end" title={SIGN_TITLE[m]}>
+              {SIGN_LABEL[m]}
+            </span>
+          ))}
+        </div>
+      )}
       <div className="tune-chords">
         {chordLabels.map((c, i) => (
-          <span key={i} style={{ left: (c.beat / beats) * w }}>
+          <span key={i} style={{ left: xAt(c.beat) }}>
             {c.label}
           </span>
         ))}
       </div>
-      <svg width={w} height={LANE_H} role="img" aria-label={notes.map((n) => names.pitch(n.pitch)).join(' ')}>
+      <svg width={w} height={TOP + LANE_H + BOTTOM} role="img" aria-label={notes.map((n) => names.pitch(n.pitch)).join(' ')}>
+        {[...slurs.values()]
+          .filter((g) => g.length > 1)
+          .map((g, i) => {
+            const x1 = xAt(g[0]!.start) + 2;
+            const last = g.at(-1)!;
+            const x2 = Math.min(w - 1, xAt(last.start) + Math.max(4, xAt(last.duration) - 3));
+            const top = Math.min(...g.map((n) => y(n.pitch))) - 2;
+            const peak = Math.max(1, top - 7);
+            return <path key={`s${i}`} className="tune-slur" d={`M${x1},${top} Q${(x1 + x2) / 2},${peak} ${x2},${top}`} />;
+          })}
         {notes.map((n, i) => {
-          const x = (n.start / beats) * w;
-          const nw = Math.max(3, Math.min(w - x, (n.duration / beats) * w) - 1.5);
-          const h = Math.max(6, step + 2);
+          const x = xAt(n.start);
+          const nw = Math.max(3, Math.min(w - x, xAt(n.duration)) - 1.5);
+          const ny = y(n.pitch) - h / 2 + step / 2;
+          const marks = (n.marks ?? []).map(markInfo);
+          const signs = marks.filter((m) => m.kind !== 'dynamic');
+          const dynamics = marks.filter((m) => m.kind === 'dynamic');
           return (
             <g key={i}>
-              <rect x={x} y={y(n.pitch) - h / 2 + step / 2} width={nw} height={h} rx={2} fill={colour(Math.round(n.pitch))} />
+              {(n.grace ?? []).map((g, gi, all) => (
+                <rect key={`g${gi}`} className="tune-grace" x={Math.max(0, x - (all.length - gi) * 4)} y={y(g) - h * 0.3 + step / 2} width={3} height={h * 0.6} rx={1} fill={colour(Math.round(g))}>
+                  <title>grace {names.pitch(g)}</title>
+                </rect>
+              ))}
+              <rect x={x} y={ny} width={nw} height={h} rx={2} fill={colour(Math.round(n.pitch))} />
               {nw >= 11 && (
                 <text x={x + 2} y={y(n.pitch) + step / 2 + 3.5} className="tune-note-label">
                   {names.pc(Math.round(n.pitch))}
+                </text>
+              )}
+              {signs.length > 0 && (
+                <text x={x + 1} y={10} className="tune-mark">
+                  {signs.map((m) => m.symbol).join('')}
+                  <title>{signs.map((m) => m.name).join(', ')}</title>
+                </text>
+              )}
+              {dynamics.length > 0 && (
+                <text x={x + 1} y={TOP + LANE_H + BOTTOM - 2} className="tune-dynamic">
+                  {dynamics.map((m) => m.symbol).join(' ')}
                 </text>
               )}
             </g>
