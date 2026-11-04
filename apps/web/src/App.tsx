@@ -4,6 +4,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { Latency } from './latency/Latency';
 import { Library } from './library/Library';
 import { Metronome } from './metronome/Metronome';
+import { Puzzles } from './puzzles/Puzzles';
 import { useSettings } from './settings';
 import { Tuner } from './tuner/Tuner';
 import { Tunes } from './tunes/Tunes';
@@ -14,6 +15,7 @@ const PAGES = {
   practice: { title: 'Practice', render: () => <Metronome /> },
   library: { title: 'Library', render: () => <Library /> },
   tunes: { title: 'Tunes', render: () => <Tunes /> },
+  puzzles: { title: 'Puzzles', render: () => <Puzzles /> },
   latency: { title: 'Latency', render: () => <Latency /> },
 } as const;
 type Page = keyof typeof PAGES;

@@ -1533,3 +1533,174 @@ fieldset {
   cursor: pointer;
   color: var(--muted);
 }
+
+/* Puzzles: harmonise a tune, write a tune through chords */
+.puzzle .board-wrap {
+  overflow-x: auto;
+  margin: 8px 0 4px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.puzzle svg.board {
+  display: block;
+  max-width: none;
+  font-family: var(--font);
+}
+
+.puzzle .cell {
+  cursor: pointer;
+}
+
+.puzzle .cell:hover > rect:first-child {
+  stroke: var(--accent);
+  stroke-opacity: 0.5;
+}
+
+.puzzle .board-label {
+  fill: var(--muted);
+  font: 11px var(--mono);
+}
+
+.puzzle .row-label {
+  fill: var(--fg);
+  font: 700 12px var(--mono);
+}
+
+.puzzle .row-fn {
+  fill: var(--muted);
+  font-size: 10px;
+}
+
+.puzzle .num-letter {
+  font-family: var(--mono);
+}
+
+.puzzle .pulse-cell {
+  animation: pulse-cell 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse-cell {
+  50% {
+    stroke-opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .puzzle .pulse-cell {
+    animation: none;
+  }
+}
+
+.puzzle .scoreline {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  min-height: 1.6em;
+  margin: 8px 0;
+}
+
+.puzzle .stars {
+  color: var(--accent);
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.puzzle .stars i {
+  font-style: normal;
+  color: var(--line);
+}
+
+.puzzle .explain {
+  margin: 4px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.puzzle .explain b {
+  color: var(--fg);
+}
+
+.puzzle .rules {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 75ch;
+}
+
+.puzzle .rules summary {
+  cursor: pointer;
+  color: var(--fg);
+}
+
+.puzzle .emb-picks {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.puzzle .chip-btn {
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 13px;
+}
+
+.puzzle .chip-btn[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.puzzle .stack-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.puzzle .floor {
+  font: 700 12px var(--mono);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--fg);
+}
+
+.puzzle .floor small {
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.puzzle .floor.core {
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+
+.puzzle .floor.colour {
+  border: 1px dashed var(--accent);
+  color: var(--accent);
+}
+
+.puzzle .floor.rub {
+  border: 1px dashed var(--bad);
+  color: var(--bad);
+}
+
+.puzzle .floor.off {
+  opacity: 0.4;
+}
+
+.puzzle .goals {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  display: grid;
+  gap: 2px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.puzzle .goals li.met {
+  color: var(--good);
+}
