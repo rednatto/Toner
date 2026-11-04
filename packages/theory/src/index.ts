@@ -13,3 +13,5 @@ export * from './progressions.js';
 export * from './abc.js';
 export * from './ornaments.js';
 export * from './keyWell.js';
+export * from './harmonise.js';
+export * from './melodise.js';
