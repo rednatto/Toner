@@ -1398,3 +1398,138 @@ fieldset {
   text-align: center;
   color: var(--accent);
 }
+
+/* Key well: the semitone clock where distance from the centre is how at home a note is */
+.key-well {
+  display: block;
+  overflow: visible;
+}
+
+.key-well text {
+  font-family: var(--mono);
+  fill: var(--muted);
+}
+
+.key-well .well-rim.on {
+  fill: var(--fg);
+  font-weight: 700;
+}
+
+.key-well .well-rim.home {
+  fill: var(--accent);
+  font-weight: 700;
+}
+
+.key-well .well-rim.out {
+  fill: oklch(0.5 0.015 270);
+}
+
+.key-well .well-letter {
+  fill-opacity: 0.7;
+}
+
+.key-well .well-note-name {
+  fill: oklch(0.17 0.02 270);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.key-well .well-note,
+.key-well .well-spot,
+.key-well .well-centre {
+  cursor: pointer;
+}
+
+.key-well .well-spot:hover {
+  fill-opacity: 0.25;
+}
+
+.key-well .well-centre:focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-opacity: 0.5;
+}
+
+.well-figure {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.well-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.well-controls .seg {
+  align-self: center;
+}
+
+.well-legend {
+  margin: 0;
+  max-width: 300px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.chart-chord .key-well.mini {
+  margin-top: 2px;
+}
+
+.now-glyphs {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Chord library: the well beside the fingerings */
+.chord-stage {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 18px 28px;
+  align-items: start;
+  margin: 14px 0 20px;
+}
+
+@media (max-width: 760px) {
+  .chord-stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .chord-stage .key-well {
+    width: min(360px, 100%);
+    height: auto;
+  }
+}
+
+.chord-side {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+}
+
+.chord-side h2,
+.chord-side p {
+  margin: 0;
+}
+
+.chord-side .controls {
+  margin: 0;
+}
+
+.chord-side .diagrams .picked .chord-diagram {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.chord-side details summary {
+  cursor: pointer;
+  color: var(--muted);
+}

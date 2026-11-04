@@ -1,10 +1,11 @@
 import { useMemo } from 'react';
-import { analyzeChord, degreeChord, triadFamily, degreeName, parseProgression, progression, PROGRESSIONS, type Chord, type Degree, type Mode } from '@toner/theory';
+import { analyzeChord, chordPcs, degreeChord, triadFamily, degreeName, parseProgression, progression, PROGRESSIONS, type Chord, type Degree, type Mode } from '@toner/theory';
 import { generateVoicings, type Voicing } from '@toner/instrument';
 import { strumPitches } from '../audio/strum';
 import { ChordDiagram } from '../library/ChordDiagram';
 import { useSettings, useStrings, voicingKey } from '../settings';
 import { functionColour } from '../visual/functions';
+import { KeyWell } from '../visual/KeyWell';
 import type { ScheduledClick } from './engine';
 
 export interface PracticeChord {
@@ -134,6 +135,7 @@ export function ChordLane({
                   <b>{degreeName(c.degree)}</b>
                   <small>{names.chord(c.chord)}</small>
                   {also && <small>{also.chord(c.chord)}</small>}
+                  <KeyWell pcs={chordPcs(c.chord)} root={c.chord.root} pitches={c.voicing?.pitches} mode={p.mode} size={40} />
                 </button>
               );
             })}
@@ -166,7 +168,10 @@ export function ChordLane({
               </div>
               {c.voicing ? (
                 <>
+                  <div className="now-glyphs">
+                  <KeyWell pcs={chordPcs(c.chord)} root={c.chord.root} pitches={c.voicing.pitches} mode={p.mode} size={150} />
                   <ChordDiagram voicing={c.voicing} strings={tuning.strings} title={names.chord(c.chord)} onPlay={() => play(c)} />
+                  </div>
                   {c.voicings.length > 1 && (
                     <div className="fingering-pick">
                       <button onClick={() => fingering(c, -1)} aria-label="Previous fingering">
