@@ -49,6 +49,10 @@ const EDGE: Record<number, { colour: string; name: string }> = {
 };
 
 type Level = 'mini' | 'medium' | 'large';
+export interface WellMark {
+  pc: PitchClass;
+  kind: 'melody' | 'colour' | 'rub';
+}
 interface NoteG {
   pc: PitchClass;
   r: number;
@@ -162,6 +166,7 @@ export function KeyWell({
   spacing,
   interactive = false,
   label,
+  marks = [],
 }: {
   pcs: PitchClass[];
   root?: PitchClass;
@@ -176,6 +181,8 @@ export function KeyWell({
   /** Tap and hold to hear (large wells only). */
   interactive?: boolean;
   label?: string;
+  /** Extra marks on the rim: a melody note (gold dot), an added colour tone such as a ninth (diamond), or a note that rubs against the chord (red ring). */
+  marks?: readonly WellMark[];
 }) {
   const { settings, names, also, colours } = useSettings();
   const home = settings.home;
@@ -342,6 +349,20 @@ export function KeyWell({
           <title>Tap to hear the chord, hold to hear its notes</title>
         </circle>
       )}
+      {/* rim marks: melody notes, colour tones, rubs */}
+      {marks.map((m, i) => {
+        const a = g.spokeA[relative(m.pc, home)]!;
+        const [x, y] = toXY(mini ? 150 : RIM, a);
+        const s = mini ? 18 : level === 'medium' ? 11 : 7;
+        const c = m.kind === 'melody' ? 'var(--accent)' : m.kind === 'rub' ? 'var(--bad)' : colours.pc(m.pc, home);
+        return m.kind === 'colour' ? (
+          <path key={i} d={`M${f1(x)} ${f1(y - s)}L${f1(x + s)} ${f1(y)}L${f1(x)} ${f1(y + s)}L${f1(x - s)} ${f1(y)}Z`} fill={c} stroke="var(--stage)" strokeWidth={mini ? 3 : 1}><title>colour tone {names.pc(m.pc)}</title></path>
+        ) : m.kind === 'rub' ? (
+          <circle key={i} cx={f1(x)} cy={f1(y)} r={s} fill="none" stroke={c} strokeWidth={mini ? 4 : 1.5}><title>rubs: {names.pc(m.pc)}</title></circle>
+        ) : (
+          <circle key={i} cx={f1(x)} cy={f1(y)} r={s * 0.85} fill={c} stroke="var(--stage)" strokeWidth={mini ? 3 : 1}><title>melody {names.pc(m.pc)}</title></circle>
+        );
+      })}
       {/* notes: doubled notes get one thin ring per extra copy */}
       {g.notes.map((n) => {
         const [x, y] = pos(n);
