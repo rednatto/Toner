@@ -35,6 +35,7 @@ import { ChordDiagram } from './ChordDiagram';
 import { Fretboard } from './Fretboard';
 import { OverviewView } from './OverviewView';
 import { PcClocks } from './PcClock';
+import { KeyWell, KeyWellControls, KeyWellLegend } from '../visual/KeyWell';
 import { ProgressionView } from './ProgressionView';
 import { StrumView } from './StrumView';
 
@@ -122,6 +123,8 @@ function ChordView({ chord, onChange }: { chord: Chord; onChange: (c: Chord) => 
   const { settings, names, letters } = useSettings();
   const { tuning, profile } = useStrings();
   const [capo, setCapo] = useState(0);
+  /** The fingering last heard, whose doublings the well shows. */
+  const [shown, setShown] = useState(0);
   const q = chordQuality(chord.quality);
   const pcs = chordPcs(chord);
   const set = chordSet(chord);
@@ -147,13 +150,47 @@ function ChordView({ chord, onChange }: { chord: Chord; onChange: (c: Chord) => 
         ))}
       </div>
 
-      <div className="detail">
-        <PcClocks pcs={pcs} root={chord.root} size={170} />
-        <div className="facts">
+      <div className="chord-stage">
+        <figure className="well-figure">
+          <KeyWell pcs={pcs} root={chord.root} pitches={voicings[Math.min(shown, voicings.length - 1)]?.pitches} size={360} interactive />
+          <KeyWellControls />
+          <KeyWellLegend />
+        </figure>
+        <div className="chord-side">
           <h2>
             <span className="roman">{home.roman}</span> {names.chord(chord)} {settings.naming !== 'letters' && <small>{letters.chord(chord)}</small>}
           </h2>
-          <p className="muted">{q.name}</p>
+          <p className="muted">
+            {q.name} · {home.function} from home {names.pc(settings.home)}
+            {home.borrowed ? ', borrowed from the minor side' : ''}
+          </p>
+          <div className="controls">
+            <label>
+              Capo
+              <input type="number" min={0} max={12} value={capo} onChange={(e) => setCapo(Math.max(0, Math.min(12, Number(e.target.value))))} />
+            </label>
+            <span className="hint">
+              {profile.name}, {tuning.name}. Tap a fingering to hear it; the well shows its doubled notes.
+            </span>
+          </div>
+          <div className="diagrams">
+            {voicings.length === 0 && <p className="hint">No playable voicing found in this tuning.</p>}
+            {voicings.map((v, i) => (
+              <div key={v.frets.join(',')} className={i === Math.min(shown, voicings.length - 1) ? 'picked' : undefined}>
+                <ChordDiagram
+                  voicing={v}
+                  strings={strings}
+                  title={names.chord(chord)}
+                  onPlay={() => {
+                    setShown(i);
+                    void strum(strings, v, settings.a4);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <details className="facts">
+            <summary>Steps, shape and symmetry</summary>
           <table>
             <tbody>
               <tr>
@@ -199,23 +236,8 @@ function ChordView({ chord, onChange }: { chord: Chord; onChange: (c: Chord) => 
               </tr>
             </tbody>
           </table>
+          </details>
         </div>
-      </div>
-
-      <div className="controls">
-        <label>
-          Capo
-          <input type="number" min={0} max={12} value={capo} onChange={(e) => setCapo(Math.max(0, Math.min(12, Number(e.target.value))))} />
-        </label>
-        <span className="hint">
-          {profile.name}, {tuning.name}. Tap a diagram to hear it.
-        </span>
-      </div>
-      <div className="diagrams">
-        {voicings.length === 0 && <p className="hint">No playable voicing found in this tuning.</p>}
-        {voicings.map((v) => (
-          <ChordDiagram key={v.frets.join(',')} voicing={v} strings={strings} title={names.chord(chord)} onPlay={() => void strum(strings, v, settings.a4)} />
-        ))}
       </div>
       <h3>Every {names.chord(chord)} tone on the neck</h3>
       <Fretboard strings={strings} pcs={pcs} root={chord.root} frets={Math.min(15, profile.frets)} />

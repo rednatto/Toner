@@ -1,9 +1,10 @@
-import { analyzeChord, degreeChord, degreeName, PROGRESSIONS, type Progression } from '@toner/theory';
+import { analyzeChord, chordPcs, degreeChord, degreeName, PROGRESSIONS, type Progression } from '@toner/theory';
 import { generateVoicings } from '@toner/instrument';
 import { resumeAudio } from '../audio/context';
 import { pluck } from '../audio/synth';
 import { useSettings, useStrings } from '../settings';
 import { functionColour } from '../visual/functions';
+import { KeyWell } from '../visual/KeyWell';
 
 /** The chord progression library: each loop in roman numerals and in the current key, ready to hear or practise. */
 export function ProgressionView() {
@@ -56,6 +57,7 @@ export function ProgressionView() {
                           <b>{degreeName(d)}</b>
                           <small>{names.chord(c)}</small>
                           {also && <small>{also.chord(c)}</small>}
+                          <KeyWell pcs={chordPcs(c)} root={c.root} mode={p.mode} size={40} />
                         </span>
                       );
                     })}

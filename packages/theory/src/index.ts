@@ -12,3 +12,4 @@ export * from './events.js';
 export * from './progressions.js';
 export * from './abc.js';
 export * from './ornaments.js';
+export * from './keyWell.js';

@@ -4,7 +4,7 @@
  * convenience so a reload remembers them.
  */
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Naming, type NamingMode, type PitchClass } from '@toner/theory';
+import { Naming, type NamingMode, type PitchClass, type WellLayers } from '@toner/theory';
 import { instrument } from '@toner/instrument';
 import { scheme, type ColourScheme } from './visual/schemes';
 
@@ -25,9 +25,13 @@ export interface Settings {
   voicings: Record<string, number>;
   /** This device's measured round trip from the latency test, in ms (0 = not measured). */
   latencyMs: number;
+  /** Key wells: how many rings (1 = a plain clock, 4 = home chord, key, borrowed, outside). */
+  wellLayers: WellLayers;
+  /** Key wells: rim share of notes outside the key (1 = even clock, towards 0 = the key's seven notes spread evenly). */
+  wellSpacing: number;
 }
 
-const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '', progression: '', latencyMs: 0, alsoLetters: false, voicings: {} };
+const DEFAULTS: Settings = { naming: 'home', home: 0, scheme: 'fifths', instrument: 'guitar', tuning: 'standard', a4: 440, strum: '', progression: '', latencyMs: 0, alsoLetters: false, voicings: {}, wellLayers: 3, wellSpacing: 1 };
 const KEY = 'toner.settings';
 
 function load(): Settings {
