@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { analyzeChord, chordPcs, chordTension, FUNCTION_INFO, mod12, romanNumeral, type Chord, type Mode } from '@toner/theory';
 import { useSettings } from '../settings';
+import { ChordTile } from './ChordTile';
 
 const SETS = {
   triads: ['maj', 'min', 'dim', 'aug'],
@@ -77,11 +78,11 @@ export function OverviewView({ onChord }: { onChord: (c: Chord) => void }) {
       </div>
       <p className="hint">
         Triads, sevenths and colour chords can be shown together: tap a family to add or remove it. Roman numerals count from home on the major scale (♭III, ♭VI, ♭VII are the minor side). Inside → outside orders by the chord's job (home, away, tension, outside), notes outside the key, and its own
-        clashes (semitones and tritones). Tap a chord to open it.
+        clashes (semitones and tritones). Tap a chord to hear it; the corner arrow opens it.
       </p>
       <div className="overview">
         {rows.map(({ chord, a, tension, roman }) => (
-          <button key={`${chord.root}:${chord.quality}`} onClick={() => onChord(chord)} style={{ borderLeftColor: colours.pc(chord.root, settings.home) }} title={`${FUNCTION_INFO[a.function].description}${a.borrowed ? ', borrowed from the parallel ' + (mode === 'major' ? 'minor' : 'major') : ''}`}>
+          <ChordTile key={`${chord.root}:${chord.quality}`} chord={chord} mode={mode} onOpen={() => onChord(chord)} style={{ borderLeftColor: colours.pc(chord.root, settings.home) }} title={`${FUNCTION_INFO[a.function].description}${a.borrowed ? ', borrowed from the parallel ' + (mode === 'major' ? 'minor' : 'major') : ''}`}>
             <span className="roman">{roman}</span>
             <span>
               {names.chord(chord)} {also && <span className="muted">{also.chord(chord)}</span>}
@@ -93,7 +94,7 @@ export function OverviewView({ onChord }: { onChord: (c: Chord) => void }) {
             <span className="tension-bar" aria-label={`Tension ${tension.toFixed(1)}`}>
               <i style={{ width: `${(tension / max) * 100}%` }} />
             </span>
-          </button>
+          </ChordTile>
         ))}
       </div>
     </div>

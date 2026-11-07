@@ -35,6 +35,7 @@ import { ChordDiagram } from './ChordDiagram';
 import { Fretboard } from './Fretboard';
 import { OverviewView } from './OverviewView';
 import { PcClocks } from './PcClock';
+import { ChordTile } from './ChordTile';
 import { KeyWell, KeyWellControls, KeyWellLegend } from '../visual/KeyWell';
 import { ProgressionView } from './ProgressionView';
 import { StrumView } from './StrumView';
@@ -316,13 +317,13 @@ function ScaleView({ scale, onChange, onChord }: { scale: Scale; onChange: (s: S
           <div className="chips">
             {chords.map((c) =>
               c.chord ? (
-                <button key={c.degree} onClick={() => onChord(c.chord!)}>
+                <ChordTile key={c.degree} chord={c.chord} onOpen={() => onChord(c.chord!)}>
                   <b>{names.chord(c.chord)}</b>
                   {also && <small>{also.chord(c.chord)}</small>}
                   <small>
                     <span className="roman">{romanNumeral(c.chord, { home: scale.root, mode: 'major' })}</span> · {mod12(c.root - scale.root)} · {triadFamily(c.chord.quality)}
                   </small>
-                </button>
+                </ChordTile>
               ) : (
                 <span key={c.degree} className="chip">
                   {c.pcs.map((p) => names.pc(p)).join(' ')}
@@ -367,10 +368,10 @@ function FindView({ onChord, onScale }: { onChord: (c: Chord) => void; onScale: 
           <div className="chips">
             {chords.length === 0 && <span className="hint">No chord in the vocabulary has exactly these notes.</span>}
             {chords.map((m) => (
-              <button key={`${m.chord.root}-${m.chord.quality}-${m.chord.bass}`} onClick={() => onChord(m.chord)}>
+              <ChordTile key={`${m.chord.root}-${m.chord.quality}-${m.chord.bass}`} chord={m.chord} onOpen={() => onChord(m.chord)}>
                 <b>{names.chord(m.chord)}</b>
                 {m.missing.length > 0 && <small>without {m.missing.map((p) => names.pc(p)).join(', ')}</small>}
-              </button>
+              </ChordTile>
             ))}
           </div>
           <h3>Scales containing them</h3>

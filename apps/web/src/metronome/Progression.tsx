@@ -169,7 +169,7 @@ export function ChordLane({
               {c.voicing ? (
                 <>
                   <div className="now-glyphs">
-                  <KeyWell pcs={chordPcs(c.chord)} root={c.chord.root} pitches={c.voicing.pitches} mode={p.mode} size={150} />
+                  <KeyWell pcs={chordPcs(c.chord)} root={c.chord.root} pitches={c.voicing.pitches} mode={p.mode} size={150} interactive />
                   <ChordDiagram voicing={c.voicing} strings={tuning.strings} title={names.chord(c.chord)} onPlay={() => play(c)} />
                   </div>
                   {c.voicings.length > 1 && (
