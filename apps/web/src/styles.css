@@ -1039,20 +1039,27 @@ label.grow {
   gap: 6px;
 }
 
-.overview button {
+.overview .chord-tile-play {
   display: grid;
   justify-items: start;
   gap: 2px;
   padding: 6px 8px;
   text-align: left;
-  border-left: 4px solid var(--line);
+  height: 100%;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
 }
 
-.overview button .roman {
+.overview .chord-tile {
+  border-left: 4px solid var(--line);
+  border-radius: 8px;
+}
+
+.overview .chord-tile-play .roman {
   font-size: 17px;
 }
 
-.overview button small {
+.overview .chord-tile-play small {
   color: var(--muted);
   font-size: 11px;
 }
@@ -1532,4 +1539,78 @@ fieldset {
 .chord-side details summary {
   cursor: pointer;
   color: var(--muted);
+}
+
+.key-well {
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+.key-well :focus {
+  outline: none;
+}
+
+.key-well rect.well-centre:focus-visible {
+  stroke: var(--accent);
+  stroke-opacity: 0.5;
+  stroke-width: 6;
+}
+
+/* A chord you can hear in place; the corner arrow opens it */
+.chord-tile {
+  position: relative;
+  display: grid;
+}
+
+.chord-tile-play {
+  display: grid;
+  justify-items: inherit;
+  align-content: start;
+  gap: 2px;
+  width: 100%;
+  text-align: inherit;
+}
+
+.chart-chord.chord-tile,
+.chips .chord-tile {
+  padding: 0;
+}
+
+.chart-chord .chord-tile-play {
+  justify-items: center;
+  padding: 2px 6px;
+  border: 0;
+  background: transparent;
+  border-radius: 6px;
+}
+
+.chips .chord-tile-play {
+  justify-items: start;
+  padding: 4px 26px 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.chips .chord-tile-play .key-well {
+  justify-self: start;
+}
+
+.chord-tile-open {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 0 5px;
+  font-size: 12px;
+  line-height: 1.4;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.chord-tile-open:hover:not(:disabled) {
+  color: var(--accent);
+  background: transparent;
 }

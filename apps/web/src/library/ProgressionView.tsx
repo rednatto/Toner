@@ -1,10 +1,10 @@
-import { analyzeChord, chordPcs, degreeChord, degreeName, PROGRESSIONS, type Progression } from '@toner/theory';
+import { analyzeChord, degreeChord, degreeName, PROGRESSIONS, type Progression } from '@toner/theory';
 import { generateVoicings } from '@toner/instrument';
 import { resumeAudio } from '../audio/context';
 import { pluck } from '../audio/synth';
 import { useSettings, useStrings } from '../settings';
 import { functionColour } from '../visual/functions';
-import { KeyWell } from '../visual/KeyWell';
+import { ChordTile } from './ChordTile';
 
 /** The chord progression library: each loop in roman numerals and in the current key, ready to hear or practise. */
 export function ProgressionView() {
@@ -32,7 +32,7 @@ export function ProgressionView() {
   return (
     <div className="view">
       <p className="hint">
-        Written from home in roman numerals (upper case major, lower case minor, ♭ for the minor side), shown here in {names.pc(settings.home)}. Change home in the header to move them. Borders show the chord's job: green home, gold tension, red outside the key.
+        Written from home in roman numerals (upper case major, lower case minor, ♭ for the minor side), shown here in {names.pc(settings.home)}. Change home in the header to move them. Borders show the chord's job: green home, gold tension, red outside the key. Tap a chord to hear it.
       </p>
       {styles.map((style) => (
         <section key={style}>
@@ -53,12 +53,11 @@ export function ProgressionView() {
                       const c = degreeChord(d, settings.home);
                       const fn = analyzeChord(c, key).function;
                       return (
-                        <span key={i} className={`chart-chord fn-${fn}`} style={{ borderBottomColor: functionColour(fn) }} title={fn}>
+                        <ChordTile key={i} chord={c} mode={p.mode} className={`chart-chord fn-${fn}`} style={{ borderBottomColor: functionColour(fn) }} title={`${fn}: tap to hear it`}>
                           <b>{degreeName(d)}</b>
                           <small>{names.chord(c)}</small>
                           {also && <small>{also.chord(c)}</small>}
-                          <KeyWell pcs={chordPcs(c)} root={c.root} mode={p.mode} size={40} />
-                        </span>
+                        </ChordTile>
                       );
                     })}
                   </div>

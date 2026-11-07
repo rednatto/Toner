@@ -14,7 +14,7 @@
  * Large and interactive: tap the centre to hear the chord, hold it to hear the
  * notes one by one, tap any point on the rings to hear that note.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
 import {
   intervalClass,
   mod12,
@@ -208,7 +208,8 @@ export function KeyWell({
     const inVoicing = pitches?.find((p) => mod12(p) === pc);
     void play([inVoicing ?? 60 + pc], 0, 1.6);
   };
-  const press = () => {
+  const press = (e: PointerEvent) => {
+    e.stopPropagation();
     held.current = false;
     holdTimer.current = window.setTimeout(() => {
       held.current = true;
@@ -216,8 +217,10 @@ export function KeyWell({
       void play([...ps, ...ps.slice(0, -1).reverse()], 0.32, 1.2);
     }, 380);
   };
-  const release = () => {
-    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
+  const release = (e: PointerEvent) => {
+    e.stopPropagation();
+    if (holdTimer.current === null) return;
+    window.clearTimeout(holdTimer.current);
     holdTimer.current = null;
     if (!held.current) void play(chordPitches(), 0.035);
   };
@@ -228,6 +231,28 @@ export function KeyWell({
 
   const big = level === 'large';
   const mini = level === 'mini';
+  /** Notes and points can be tapped one by one on the larger sizes; a mini well is one button for the chord. */
+  const tapNotes = interactive && !mini;
+  const hearNote = (pc: PitchClass) => (e: MouseEvent) => {
+    e.stopPropagation();
+    playNote(pc);
+  };
+  const centreProps = {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': 'Play the chord; hold to hear its notes one by one',
+    onPointerDown: press,
+    onPointerUp: release,
+    onPointerLeave: cancel,
+    onClick: (e: MouseEvent) => e.stopPropagation(),
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.stopPropagation();
+        void play(chordPitches(), 0.035);
+      }
+    },
+  } as const;
   const vb = mini ? 158 : 192;
   const pos = (n: { r: number; a: number }) => toXY(n.r, n.a);
   const notePos = new Map(g.notes.map((n) => [n.pc, pos(n)] as const));
@@ -271,16 +296,16 @@ export function KeyWell({
               <circle
                 cx={f1(dx)}
                 cy={f1(dy)}
-                r={big && interactive ? 7 : level === 'medium' ? 4 : 2.6}
+                r={tapNotes ? (big ? 7 : 11) : level === 'medium' ? 4 : 2.6}
                 fill="var(--accent)"
-                fillOpacity={big && interactive ? 0.001 : 0.5}
-                className={big && interactive ? 'well-spot' : undefined}
-                onClick={big && interactive ? () => playNote(pc) : undefined}
+                fillOpacity={tapNotes ? 0.001 : 0.5}
+                className={tapNotes ? 'well-spot' : undefined}
+                onClick={tapNotes ? hearNote(pc) : undefined}
               >
-                {big && interactive && <title>Hear {names.pc(pc)}</title>}
+                {tapNotes && <title>Hear {names.pc(pc)}</title>}
               </circle>
             )}
-            {big && interactive && <circle cx={f1(dx)} cy={f1(dy)} r={2.6} fill="var(--accent)" fillOpacity={0.5} pointerEvents="none" />}
+            {tapNotes && <circle cx={f1(dx)} cy={f1(dy)} r={big ? 2.6 : 4} fill="var(--accent)" fillOpacity={0.5} pointerEvents="none" />}
           </g>
         );
       })}
@@ -328,24 +353,8 @@ export function KeyWell({
           );
         })}
       {/* the centre: tap for the chord, hold for its notes one by one */}
-      {big && interactive && (
-        <circle
-          r={44}
-          className="well-centre"
-          fill="transparent"
-          role="button"
-          tabIndex={0}
-          aria-label="Play the chord; hold to hear its notes one by one"
-          onPointerDown={press}
-          onPointerUp={release}
-          onPointerLeave={cancel}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              void play(chordPitches(), 0.035);
-            }
-          }}
-        >
+      {tapNotes && (
+        <circle r={big ? 44 : 62} className="well-centre" fill="transparent" {...centreProps}>
           <title>Tap to hear the chord, hold to hear its notes</title>
         </circle>
       )}
@@ -371,15 +380,16 @@ export function KeyWell({
           <g
             key={n.pc}
             transform={`translate(${f1(x)} ${f1(y)})`}
-            className={big && interactive ? 'well-note' : undefined}
-            onClick={big && interactive ? () => playNote(n.pc) : undefined}
-            role={big && interactive ? 'button' : undefined}
-            aria-label={big && interactive ? `Hear ${names.pc(n.pc)}` : undefined}
+            className={tapNotes ? 'well-note' : undefined}
+            onClick={tapNotes ? hearNote(n.pc) : undefined}
+            role={tapNotes ? 'button' : undefined}
+            aria-label={tapNotes ? `Hear ${names.pc(n.pc)}` : undefined}
           >
             {Array.from({ length: n.count - 1 }, (_, k) => (
               <circle key={k} r={noteR + (mini ? 7 : 4) * (k + 1)} fill="none" stroke={colours.pc(n.pc, home)} strokeWidth={mini ? 2.4 : 1} strokeOpacity={0.8 - 0.2 * k} />
             ))}
-            <circle r={noteR} fill={colours.pc(n.pc, home)} stroke={isRoot ? 'var(--fg)' : 'var(--stage)'} strokeWidth={isRoot ? (mini ? 5 : 2) : mini ? 3 : 1.4} />
+            {isRoot && !mini && <RootMark x={x} y={y} r={noteR} medium={level === 'medium'} />}
+            <circle r={noteR} fill={colours.pc(n.pc, home)} stroke={isRoot ? (mini ? 'var(--accent)' : 'var(--fg)') : 'var(--stage)'} strokeWidth={isRoot ? (mini ? 7 : 2) : mini ? 3 : 1.4} />
             {!mini && (
               <text y={labelSize * 0.36} textAnchor="middle" className="well-note-name" fontSize={level === 'medium' ? 20 : 12.5}>
                 {names.pc(n.pc)}
@@ -388,7 +398,34 @@ export function KeyWell({
           </g>
         );
       })}
+      {interactive && mini && <rect x={-vb} y={-vb} width={2 * vb} height={2 * vb} fill="transparent" className="well-centre" {...centreProps} />}
     </svg>
+  );
+}
+
+/** The root's mark: a small gold chevron just outside the note, pointing in at it. */
+function RootMark({ x, y, r, medium }: { x: number; y: number; r: number; medium: boolean }) {
+  const L = Math.hypot(x, y) || 1;
+  const ux = x / L;
+  const uy = y / L;
+  const d = r + (medium ? 9 : 5);
+  const s = medium ? 9 : 8;
+  const tip = [ux * d, uy * d];
+  const back = [ux * (d + s), uy * (d + s)];
+  const px = -uy * s;
+  const py = ux * s;
+  return (
+    <path
+      d={`M${f1(back[0]! + px)} ${f1(back[1]! + py)}L${f1(tip[0]!)} ${f1(tip[1]!)}L${f1(back[0]! - px)} ${f1(back[1]! - py)}`}
+      fill="none"
+      stroke="var(--accent)"
+      strokeWidth={medium ? 3 : 2.2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      pointerEvents="none"
+    >
+      <title>root of the chord</title>
+    </path>
   );
 }
 
