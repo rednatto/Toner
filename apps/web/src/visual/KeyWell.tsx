@@ -204,9 +204,14 @@ export function KeyWell({
     const t = ctx.currentTime + 0.02;
     ps.forEach((p, i) => pluck(ctx, p, settings.a4, t + i * gap, seconds, ctx.destination, 0.25));
   };
+  /** A note on its own: every octave it sounds in the voicing, low to high, or near the voicing's middle when it isn't played. */
   const playNote = (pc: PitchClass) => {
-    const inVoicing = pitches?.find((p) => mod12(p) === pc);
-    void play([inVoicing ?? 60 + pc], 0, 1.6);
+    const copies = (pitches ?? []).filter((p) => mod12(p) === pc).sort((a, b) => a - b);
+    if (copies.length) return void play(copies, 0.09, 1.8);
+    const ps = chordPitches();
+    const mid = ps.length ? (ps[0]! + ps[ps.length - 1]!) / 2 : 60;
+    const near = pc + 12 * Math.round((mid - pc) / 12);
+    void play([near], 0, 1.6);
   };
   const press = (e: PointerEvent) => {
     e.stopPropagation();
