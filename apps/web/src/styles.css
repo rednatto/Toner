@@ -1823,8 +1823,54 @@ fieldset {
   border-bottom: 1px solid var(--line);
 }
 
+.listen-check {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px 28px;
+  align-items: start;
+  margin: 0 0 16px;
+  padding: 16px;
+  background: var(--stage);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.listen-glyph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.heard-glyph circle {
+  transition: r 0.08s linear;
+}
+
+.heard-glyph .glyph-label {
+  font-size: 12px;
+  font-weight: 700;
+  fill: var(--muted);
+}
+
+.heard-glyph .glyph-label.on {
+  fill: var(--accent-ink);
+}
+
+.listen-verdict-line {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 4px 0 8px;
+}
+
+.listen-verdict-detail {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
 @media (max-width: 720px) {
-  .listen-now {
+  .listen-now,
+  .listen-check {
     grid-template-columns: 1fr;
   }
 }
