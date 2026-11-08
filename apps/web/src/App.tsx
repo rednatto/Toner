@@ -3,6 +3,7 @@ import { mod12, NAMING_MODES, type NamingMode } from '@toner/theory';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Latency } from './latency/Latency';
 import { Library } from './library/Library';
+import { Listen } from './listen/Listen';
 import { Metronome } from './metronome/Metronome';
 import { useSettings } from './settings';
 import { Tuner } from './tuner/Tuner';
@@ -14,6 +15,7 @@ const PAGES = {
   practice: { title: 'Practice', render: () => <Metronome /> },
   library: { title: 'Library', render: () => <Library /> },
   tunes: { title: 'Tunes', render: () => <Tunes /> },
+  listen: { title: 'Listen', render: () => <Listen /> },
   latency: { title: 'Latency', render: () => <Latency /> },
 } as const;
 type Page = keyof typeof PAGES;
