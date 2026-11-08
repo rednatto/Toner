@@ -3,7 +3,8 @@ import { parseChordSymbol, type Chord } from '@toner/theory';
 import { openCapture, type Capture } from '../audio/capture';
 import { useSettings } from '../settings';
 import { ChordDetector, defaultDetectorOptions, harmonicTemplate, VOCABULARIES, type Estimate, type Frame } from './chroma';
-import { HeardGlyph } from './HeardGlyph';
+import { KeyWellControls } from '../visual/KeyWell';
+import { HeardWell } from './HeardWell';
 import { checkChord, checkChroma, DEFAULT_CHROMA_CHECK, NoteMemory, type Check, type Remembered } from './notes';
 
 const WINDOW = 10; // seconds of timeline on screen
@@ -24,8 +25,7 @@ export function LiveView() {
   const [now, setNow] = useState<Frame | null>(null);
   const [fade, setFade] = useState(1.5);
   const [strict, setStrict] = useState(DEFAULT_CHROMA_CHECK.extra);
-  const [order, setOrder] = useState<'semitones' | 'fifths'>('semitones');
-  const [glyph, setGlyph] = useState<{ notes: Remembered[]; check: Check | null }>({ notes: [], check: null });
+  const [glyph, setGlyph] = useState<{ notes: Remembered[]; pcLevels: Remembered[]; check: Check | null }>({ notes: [], pcLevels: [], check: null });
   const noteMem = useRef(new NoteMemory(fade));
   const pcMem = useRef(new NoteMemory(fade, 2));
   const verdicts = useRef(new WeakMap<Frame, Verdict>());
@@ -106,8 +106,9 @@ export function LiveView() {
         // Notes and verdicts are on the frame clock (window centres), which runs a little behind.
         const t = h[h.length - 1]?.time ?? ctx.currentTime;
         const k = checking.current;
-        const heard = pcMem.current.at(t, 0.35).map((n) => n.pitch);
-        setGlyph({ notes: noteMem.current.at(t, 0.05), check: k ? checkChord(k.target, heard) : null });
+        const pcLevels = pcMem.current.at(t, 0.02);
+        const heard = pcLevels.filter((n) => n.level >= 0.35).map((n) => n.pitch);
+        setGlyph({ notes: noteMem.current.at(t, 0.05), pcLevels, check: k ? checkChord(k.target, heard) : null });
       }
       raf = requestAnimationFrame(tick);
     };
@@ -198,21 +199,15 @@ export function LiveView() {
       </div>
       <div className="listen-check">
         <div className="listen-glyph">
-          <HeardGlyph notes={glyph.notes} target={target} check={glyph.check} order={order} />
-          <div className="seg small" role="group" aria-label="Order">
-            {(['semitones', 'fifths'] as const).map((o) => (
-              <button key={o} aria-pressed={order === o} onClick={() => setOrder(o)}>
-                {o === 'semitones' ? 'Semitones' : 'Fifths'}
-              </button>
-            ))}
-          </div>
+          <HeardWell notes={glyph.notes} pcLevels={glyph.pcLevels} target={target} check={glyph.check} root={best?.chord.root} />
+          <KeyWellControls />
         </div>
         <div className="listen-verdict">
           {target ? <CheckText target={target} check={glyph.check} /> : <p className="muted">Type the chord you mean to play under “Expecting” and Toner checks the notes against it.</p>}
           <p className="hint">
-            Each spoke is a pitch class and each ring an octave (low E on the inside), so a note doubled on two strings shows as two dots on one spoke. Dots fade as the sound
-            does. With an expected chord its notes have coloured spokes; a dashed ring is a chord note not heard, amber marks a colour note that makes a richer chord of the
-            same kind (the D that turns E into E7), and red marks a note that does not belong.
+            This is the key well from the library and practice pages. With an expected chord it shows that chord, and each of its notes lights while you play it and fades
+            after. A note heard in two octaves gets a doubling ring, a chord note not heard is a dashed outline, a colour note that makes a richer chord of the same kind
+            (the D that turns E into E7) is a diamond on the rim, and a note that does not belong is a red ring. Tap the centre to hear the chord.
           </p>
         </div>
       </div>

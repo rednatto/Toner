@@ -1842,18 +1842,8 @@ fieldset {
   gap: 8px;
 }
 
-.heard-glyph circle {
-  transition: r 0.08s linear;
-}
-
-.heard-glyph .glyph-label {
-  font-size: 12px;
-  font-weight: 700;
+.key-well .well-note-name.absent {
   fill: var(--muted);
-}
-
-.heard-glyph .glyph-label.on {
-  fill: var(--accent-ink);
 }
 
 .listen-verdict-line {
