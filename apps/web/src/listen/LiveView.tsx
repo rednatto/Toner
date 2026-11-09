@@ -12,6 +12,7 @@ const KEEP = 30; // seconds of frames kept
 
 type Which = 'smooth' | 'raw';
 type Verdict = Check['verdict'];
+const ZEROS: number[] = Array(12).fill(0);
 
 export function LiveView() {
   const { settings, names, letters, colours } = useSettings();
@@ -117,6 +118,10 @@ export function LiveView() {
   }, [running]);
 
   const est: Estimate | null = now ? now[which] : null;
+  // The histogram is instant: this frame alone, scaled to its loudest pitch class.
+  const rawChroma = now?.raw.chroma;
+  const peak = rawChroma ? Math.max(...rawChroma) : 0;
+  const energy = rawChroma && peak > 0 ? Array.from(rawChroma, (x) => x / peak) : ZEROS;
   const best = est?.best ?? null;
 
   return (
@@ -156,7 +161,7 @@ export function LiveView() {
           <input value={targetText} onChange={(e) => setTargetText(e.target.value)} placeholder="Am" aria-invalid={!!targetText.trim() && !target} size={6} />
         </label>
         <label>
-          Notes fade over {fade.toFixed(1)} s
+          Hold heard notes {fade.toFixed(1)} s
           <input type="range" min={0.3} max={5} step={0.1} value={fade} onChange={(e) => setFade(Number(e.target.value))} />
         </label>
         <label>
@@ -175,39 +180,48 @@ export function LiveView() {
         )}
       </div>
       {error && <p className="error">{error}</p>}
-      <div className="listen-now">
-        <div className="listen-chord" style={{ color: best ? colours.pc(best.chord.root, settings.home) : undefined, opacity: best ? 0.4 + 0.6 * best.p : 1 }}>
-          {best ? names.chord(best.chord) : running ? '…' : '–'}
-          {best && settings.naming !== 'letters' && <small>{letters.chord(best.chord)}</small>}
-        </div>
-        <div className="listen-meta">
-          {best && <div>Confidence {(best.p * 100).toFixed(0)}% · match {best.score.toFixed(2)}</div>}
-          <ol className="listen-ranked">
-            {est?.ranked.slice(0, 4).map((c, i) => (
-              <li key={i}>
-                <span className="swatch" style={{ background: colours.pc(c.chord.root, settings.home) }} />
-                {names.chord(c.chord)}
-                <span className="bar">
-                  <span style={{ width: `${c.p * 100}%` }} />
-                </span>
-                <span className="muted">{(c.p * 100).toFixed(0)}%</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-        <Chroma chroma={est?.chroma ?? null} />
-      </div>
-      <div className="listen-check">
+      <div className="listen-main">
         <div className="listen-glyph">
-          <HeardWell notes={glyph.notes} pcLevels={glyph.pcLevels} target={target} check={glyph.check} root={best?.chord.root} />
+          <HeardWell notes={glyph.notes} pcLevels={glyph.pcLevels} target={target} check={glyph.check} shown={best?.chord ?? null} energy={energy} />
           <KeyWellControls />
         </div>
-        <div className="listen-verdict">
-          {target ? <CheckText target={target} check={glyph.check} /> : <p className="muted">Type the chord you mean to play under “Expecting” and Toner checks the notes against it.</p>}
+        <div className="listen-side">
+          <div className="listen-verdict">
+            {target ? (
+              <CheckText target={target} check={glyph.check} />
+            ) : (
+              <p className="listen-verdict-line muted">Type a chord under “Expecting” to check your notes against it.</p>
+            )}
+          </div>
+          <div className="listen-namer">
+            <div className="listen-chord" style={{ color: best ? colours.pc(best.chord.root, settings.home) : undefined, opacity: best ? 0.4 + 0.6 * best.p : 1 }}>
+              {best ? names.chord(best.chord) : running ? '…' : '–'}
+              <small>{best && settings.naming !== 'letters' ? letters.chord(best.chord) : '\u00a0'}</small>
+            </div>
+            <div className="listen-meta">
+              <div className="muted">Chord namer{best ? ` · ${(best.p * 100).toFixed(0)}% sure · match ${best.score.toFixed(2)}` : ''}</div>
+              <ol className="listen-ranked">
+                {Array.from({ length: 4 }, (_, i) => {
+                  const c = est?.ranked[i];
+                  return (
+                    <li key={i} style={c ? undefined : { visibility: 'hidden' }}>
+                      <span className="swatch" style={{ background: c ? colours.pc(c.chord.root, settings.home) : undefined }} />
+                      {c ? names.chord(c.chord) : '–'}
+                      <span className="bar">
+                        <span style={{ width: `${(c?.p ?? 0) * 100}%` }} />
+                      </span>
+                      <span className="muted">{c ? `${(c.p * 100).toFixed(0)}%` : ''}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          </div>
           <p className="hint">
-            This is the key well from the library and practice pages. With an expected chord it shows that chord, and each of its notes lights while you play it and fades
-            after. A note heard in two octaves gets a doubling ring, a chord note not heard is a dashed outline, a colour note that makes a richer chord of the same kind
-            (the D that turns E into E7) is a diamond on the rim, and a note that does not belong is a red ring. Tap the centre to hear the chord.
+            The coloured wedges round the outside are the notes sounding right now, like the histogram they replace. Inside is the key well from the library: with an
+            expected chord it shows that chord, each note solid once you have played it and a dashed outline when it is not heard. A note heard in two octaves gets a
+            doubling ring, a diamond on the rim is a colour note that makes a richer chord of the same kind (the D that turns E into E7), and a red ring is a note that does
+            not belong. Tap the centre to hear the chord. Without an expected chord it shows the chord the namer hears.
           </p>
         </div>
       </div>
@@ -240,25 +254,6 @@ function CheckText({ target, check }: { target: Chord; check: Check | null }) {
         {check.dropped.length > 0 && <li className="muted">Left out, which is fine: {list(check.dropped)}</li>}
         {check.foreign.length > 0 && <li className="bad">Does not belong: {list(check.foreign)}</li>}
       </ul>
-    </div>
-  );
-}
-
-function Chroma({ chroma }: { chroma: Float64Array | null }) {
-  const { settings, names, colours } = useSettings();
-  const max = chroma ? Math.max(1e-9, ...chroma) : 1;
-  return (
-    <div className="listen-chroma" aria-label="Pitch classes heard">
-      {Array.from({ length: 12 }, (_, i) => {
-        const pc = (settings.home + i) % 12;
-        const v = chroma ? chroma[pc]! / max : 0;
-        return (
-          <div key={pc} className="col">
-            <span className="fill" style={{ height: `${v * 100}%`, background: colours.pc(pc, settings.home) }} />
-            <span className="lbl">{names.pc(pc)}</span>
-          </div>
-        );
-      })}
     </div>
   );
 }
