@@ -11,6 +11,10 @@
  * smallest voice leading, and when they change ring they swing a little
  * sideways so the move reads as a turn rather than a jump.
  *
+ * Live, it can fade notes by how strongly they are heard (`presence`) and
+ * mark heard extras on the rim, so the Listen page checks a played chord on
+ * the same picture the rest of the app uses for it.
+ *
  * Large and interactive: tap the centre to hear the chord, hold it to hear the
  * notes one by one, tap any point on the rings to hear that note.
  */
@@ -52,6 +56,8 @@ type Level = 'mini' | 'medium' | 'large';
 export interface WellMark {
   pc: PitchClass;
   kind: 'melody' | 'colour' | 'rub';
+  /** 0 … 1 for marks that fade, such as notes heard a moment ago. Default 1. */
+  level?: number;
 }
 interface NoteG {
   pc: PitchClass;
@@ -167,6 +173,7 @@ export function KeyWell({
   interactive = false,
   label,
   marks = [],
+  presence,
 }: {
   pcs: PitchClass[];
   root?: PitchClass;
@@ -183,6 +190,12 @@ export function KeyWell({
   label?: string;
   /** Extra marks on the rim: a melody note (gold dot), an added colour tone such as a ninth (diamond), or a note that rubs against the chord (red ring). */
   marks?: readonly WellMark[];
+  /**
+   * How strongly each chord note is being heard right now, 0 … 1, for live
+   * listening. Notes fade with it, and a chord note not heard at all is drawn
+   * as a dashed outline. Leave it out for a chord that is simply shown.
+   */
+  presence?: ReadonlyMap<PitchClass, number>;
 }) {
   const { settings, names, also, colours } = useSettings();
   const home = settings.home;
@@ -369,22 +382,26 @@ export function KeyWell({
         const [x, y] = toXY(mini ? 150 : RIM, a);
         const s = mini ? 18 : level === 'medium' ? 11 : 7;
         const c = m.kind === 'melody' ? 'var(--accent)' : m.kind === 'rub' ? 'var(--bad)' : colours.pc(m.pc, home);
+        const op = m.level === undefined ? undefined : f1(0.15 + 0.85 * m.level);
         return m.kind === 'colour' ? (
-          <path key={i} d={`M${f1(x)} ${f1(y - s)}L${f1(x + s)} ${f1(y)}L${f1(x)} ${f1(y + s)}L${f1(x - s)} ${f1(y)}Z`} fill={c} stroke="var(--stage)" strokeWidth={mini ? 3 : 1}><title>colour tone {names.pc(m.pc)}</title></path>
+          <path key={i} opacity={op} d={`M${f1(x)} ${f1(y - s)}L${f1(x + s)} ${f1(y)}L${f1(x)} ${f1(y + s)}L${f1(x - s)} ${f1(y)}Z`} fill={c} stroke="var(--stage)" strokeWidth={mini ? 3 : 1}><title>colour tone {names.pc(m.pc)}</title></path>
         ) : m.kind === 'rub' ? (
-          <circle key={i} cx={f1(x)} cy={f1(y)} r={s} fill="none" stroke={c} strokeWidth={mini ? 4 : 1.5}><title>rubs: {names.pc(m.pc)}</title></circle>
+          <circle key={i} opacity={op} cx={f1(x)} cy={f1(y)} r={s} fill="none" stroke={c} strokeWidth={mini ? 4 : 1.5}><title>rubs: {names.pc(m.pc)}</title></circle>
         ) : (
-          <circle key={i} cx={f1(x)} cy={f1(y)} r={s * 0.85} fill={c} stroke="var(--stage)" strokeWidth={mini ? 3 : 1}><title>melody {names.pc(m.pc)}</title></circle>
+          <circle key={i} opacity={op} cx={f1(x)} cy={f1(y)} r={s * 0.85} fill={c} stroke="var(--stage)" strokeWidth={mini ? 3 : 1}><title>melody {names.pc(m.pc)}</title></circle>
         );
       })}
       {/* notes: doubled notes get one thin ring per extra copy */}
       {g.notes.map((n) => {
         const [x, y] = pos(n);
         const isRoot = n.pc === root;
+        const lv = presence ? (presence.get(n.pc) ?? 0) : 1;
+        const absent = presence !== undefined && lv < 0.05;
         return (
           <g
             key={n.pc}
             transform={`translate(${f1(x)} ${f1(y)})`}
+            opacity={presence ? f1(absent ? 1 : 0.3 + 0.7 * lv) : undefined}
             className={tapNotes ? 'well-note' : undefined}
             onClick={tapNotes ? hearNote(n.pc) : undefined}
             role={tapNotes ? 'button' : undefined}
@@ -394,9 +411,15 @@ export function KeyWell({
               <circle key={k} r={noteR + (mini ? 7 : 4) * (k + 1)} fill="none" stroke={colours.pc(n.pc, home)} strokeWidth={mini ? 2.4 : 1} strokeOpacity={0.8 - 0.2 * k} />
             ))}
             {isRoot && !mini && <RootMark x={x} y={y} r={noteR} medium={level === 'medium'} />}
-            <circle r={noteR} fill={colours.pc(n.pc, home)} stroke={isRoot ? (mini ? 'var(--accent)' : 'var(--fg)') : 'var(--stage)'} strokeWidth={isRoot ? (mini ? 7 : 2) : mini ? 3 : 1.4} />
+            {absent ? (
+              <circle r={noteR} fill="var(--stage)" stroke={colours.pc(n.pc, home)} strokeWidth={mini ? 4 : 2} strokeDasharray={mini ? '6 5' : '3 3'}>
+                <title>{names.pc(n.pc)} not heard</title>
+              </circle>
+            ) : (
+              <circle r={noteR} fill={colours.pc(n.pc, home)} stroke={isRoot ? (mini ? 'var(--accent)' : 'var(--fg)') : 'var(--stage)'} strokeWidth={isRoot ? (mini ? 7 : 2) : mini ? 3 : 1.4} />
+            )}
             {!mini && (
-              <text y={labelSize * 0.36} textAnchor="middle" className="well-note-name" fontSize={level === 'medium' ? 20 : 12.5}>
+              <text y={labelSize * 0.36} textAnchor="middle" className={`well-note-name${absent ? ' absent' : ''}`} fontSize={level === 'medium' ? 20 : 12.5}>
                 {names.pc(n.pc)}
               </text>
             )}

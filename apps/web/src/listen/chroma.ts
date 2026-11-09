@@ -17,6 +17,7 @@
  * Everything here is pure and runs the same in the browser and in tests.
  */
 import { CHORD_QUALITIES, chordQuality, mod12, type Chord } from '@toner/theory';
+import { DEFAULT_NOTES, notesFromPeaks, type HeardNote } from './notes';
 
 // ---------------------------------------------------------------------------
 // FFT
@@ -298,6 +299,8 @@ export interface Frame {
   onset: boolean;
   /** Estimate from this frame alone. */
   raw: Estimate;
+  /** Individual notes picked out of this frame, strongest first. */
+  notes: HeardNote[];
   /** Estimate from the smoothed chroma. */
   smooth: Estimate;
 }
@@ -411,9 +414,11 @@ export class ChordDetector {
     if (level < o.gate) {
       this.avg.fill(0);
       const z = new Float64Array(12);
-      return { time, level, onset: false, raw: SILENT(z), smooth: SILENT(z) };
+      return { time, level, onset: false, raw: SILENT(z), smooth: SILENT(z), notes: [] };
     }
-    const chroma = chromaOfFrame(f, o.sampleRate, o.chroma);
+    const peaks = spectralPeaks(magnitudeSpectrum(f), o.sampleRate, o.chroma);
+    const chroma = chromaFromPeaks(peaks, o.chroma);
+    const notes = notesFromPeaks(peaks, { ...DEFAULT_NOTES, a4: o.chroma.a4 });
     const raw = this.estimate(chroma);
     // After a strum, follow each frame until the window holds only the new sound,
     // so the average starts afresh from the new chord rather than the old one.
@@ -425,7 +430,7 @@ export class ChordDetector {
       for (let i = 0; i < 12; i++) this.avg[i] = this.avg[i]! * (1 - alpha) + chroma[i]! * alpha;
     }
     const smooth = this.estimate(normalise(Float64Array.from(this.avg)));
-    return { time, level, onset, raw, smooth };
+    return { time, level, onset, raw, smooth, notes };
   }
 
   private estimate(chroma: Float64Array): Estimate {
