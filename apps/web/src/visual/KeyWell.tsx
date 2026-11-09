@@ -189,6 +189,7 @@ export function KeyWell({
   marks = [],
   presence,
   animate = true,
+  energy,
 }: {
   pcs: PitchClass[];
   root?: PitchClass;
@@ -213,6 +214,12 @@ export function KeyWell({
   presence?: ReadonlyMap<PitchClass, number>;
   /** Glide between chords (default). Turn off for wells fed from live input many times a second. */
   animate?: boolean;
+  /**
+   * How much of each pitch class (indexed 0 … 11, C = 0) is sounding right now,
+   * 0 … 1, drawn as a histogram wrapped round the outside of the rim. For live
+   * input on large wells.
+   */
+  energy?: ArrayLike<number>;
 }) {
   const { settings, names, also, colours } = useSettings();
   const home = settings.home;
@@ -288,7 +295,10 @@ export function KeyWell({
       }
     },
   } as const;
-  const vb = mini ? 158 : 192;
+  const wrap = energy !== undefined && !mini;
+  const WRAP_R0 = RIM + 28;
+  const WRAP_LEN = 34;
+  const vb = mini ? 158 : wrap ? WRAP_R0 + WRAP_LEN + 4 : 192;
   const pos = (n: { r: number; a: number }) => toXY(n.r, n.a);
   const notePos = new Map(g.notes.map((n) => [n.pc, pos(n)] as const));
   const ordered = g.notes.map((n) => n.pc);
@@ -315,6 +325,30 @@ export function KeyWell({
         ) : null,
       )}
       {!mini && <circle r={RIM} fill="none" stroke="var(--accent)" strokeOpacity="0.32" strokeWidth={level === 'medium' ? 1.6 : 1} />}
+      {/* live histogram round the outside: one wedge per pitch class, growing outwards */}
+      {wrap && <circle r={WRAP_R0} fill="none" stroke="var(--line)" strokeOpacity="0.6" />}
+      {wrap &&
+        g.spokeA.map((a, i) => {
+          const pc = mod12(home + i);
+          const v = Math.max(0, Math.min(1, energy![pc] ?? 0));
+          if (v < 0.02) return null;
+          const r1 = WRAP_R0 + 1;
+          const r2 = WRAP_R0 + 2 + WRAP_LEN * v;
+          const h = 12;
+          const [ax, ay] = toXY(r1, a - h);
+          const [bx, by] = toXY(r2, a - h);
+          const [cx, cy] = toXY(r2, a + h);
+          const [dx, dy] = toXY(r1, a + h);
+          return (
+            <path
+              key={`e${i}`}
+              d={`M${f1(ax)} ${f1(ay)}L${f1(bx)} ${f1(by)}A${f1(r2)} ${f1(r2)} 0 0 1 ${f1(cx)} ${f1(cy)}L${f1(dx)} ${f1(dy)}A${f1(r1)} ${f1(r1)} 0 0 0 ${f1(ax)} ${f1(ay)}Z`}
+              fill={colours.pc(pc, home)}
+              fillOpacity={0.35 + 0.65 * v}
+              pointerEvents="none"
+            />
+          );
+        })}
       {/* each step's own place: a spoke, a tick on the rim and a small dot on its ring */}
       {g.spokeA.map((a, i) => {
         const pc = mod12(home + i);
