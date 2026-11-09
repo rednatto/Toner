@@ -96,15 +96,25 @@ function geometry(pcs: PitchClass[], counts: Map<PitchClass, number>, key: { hom
   return { rings: [...R, ...Array(4 - R.length).fill(R[R.length - 1])], ringOp: [0, 1, 2, 3].map((i) => (i < R.length ? 1 : 0)), spokeA, spokeR, notes };
 }
 
-/** Blend two geometries. Chord notes follow the smallest voice leading from the old chord. */
-function blend(from: Geometry, to: Geometry, e: number): Geometry {
+/**
+ * Which old note each new note glides from: the smallest voice leading. The
+ * search tries every pairing, so past six notes (a noisy room heard live can
+ * light most of the clock) notes simply stay where they are.
+ */
+function pairing(from: Geometry, to: Geometry): Map<PitchClass, PitchClass> {
+  const a = from.notes.map((n) => n.pc);
+  const b = to.notes.map((n) => n.pc);
+  if (a.length > 6 || b.length > 6) return new Map(b.filter((pc) => a.includes(pc)).map((pc) => [pc, pc]));
+  const out = new Map<PitchClass, PitchClass>();
+  for (const mv of voiceLeading(a, b).moves) if (!out.has(mv.to)) out.set(mv.to, mv.from);
+  return out;
+}
+
+/** Blend two geometries along a pairing of their notes. */
+function blend(from: Geometry, to: Geometry, pairs: Map<PitchClass, PitchClass>, e: number): Geometry {
   const mix = (a: number, b: number) => a + (b - a) * e;
-  const vl = voiceLeading(
-    from.notes.map((n) => n.pc),
-    to.notes.map((n) => n.pc),
-  );
   const notes = to.notes.map((n) => {
-    const src = from.notes.find((m) => m.pc === (vl.moves.find((mv) => mv.to === n.pc)?.from ?? -1));
+    const src = from.notes.find((m) => m.pc === pairs.get(n.pc));
     if (!src) return { ...n, r: n.r * ease(e), count: n.count };
     const swing = src.pc === n.pc ? (22 * Math.sin(Math.PI * e) * (n.r - src.r)) / 80 : 0;
     return { pc: n.pc, r: mix(src.r, n.r), a: src.a + shortest(src.a, n.a) * e + swing, count: n.count };
@@ -118,14 +128,18 @@ function blend(from: Geometry, to: Geometry, e: number): Geometry {
   };
 }
 
-/** The geometry to draw this frame: glides from whatever was on screen to the new target. */
-function useGlide(target: Geometry, signature: string): Geometry {
+/**
+ * The geometry to draw this frame: glides from whatever was on screen to the
+ * new target. With `animate` off it jumps, for wells redrawn many times a
+ * second from live input.
+ */
+function useGlide(target: Geometry, signature: string, animate = true): Geometry {
   const shown = useRef<Geometry>(target);
-  const anim = useRef<{ from: Geometry; to: Geometry; t0: number; sig: string }>({ from: target, to: target, t0: -1e9, sig: signature });
+  const anim = useRef<{ from: Geometry; to: Geometry; pairs: Map<PitchClass, PitchClass>; t0: number; sig: string }>({ from: target, to: target, pairs: new Map(), t0: -1e9, sig: signature });
   const [, tick] = useState(0);
-  if (anim.current.sig !== signature) anim.current = { from: shown.current, to: target, t0: performance.now(), sig: signature };
-  const e = reducedMotion() ? 1 : ease((performance.now() - anim.current.t0) / TWEEN_MS);
-  const g = e >= 1 ? anim.current.to : blend(anim.current.from, anim.current.to, e);
+  if (anim.current.sig !== signature) anim.current = { from: shown.current, to: target, pairs: animate ? pairing(shown.current, target) : new Map(), t0: animate ? performance.now() : -1e9, sig: signature };
+  const e = reducedMotion() || !animate ? 1 : ease((performance.now() - anim.current.t0) / TWEEN_MS);
+  const g = e >= 1 ? anim.current.to : blend(anim.current.from, anim.current.to, anim.current.pairs, e);
   shown.current = g;
   useEffect(() => {
     if (e >= 1) return;
@@ -174,6 +188,7 @@ export function KeyWell({
   label,
   marks = [],
   presence,
+  animate = true,
 }: {
   pcs: PitchClass[];
   root?: PitchClass;
@@ -196,6 +211,8 @@ export function KeyWell({
    * as a dashed outline. Leave it out for a chord that is simply shown.
    */
   presence?: ReadonlyMap<PitchClass, number>;
+  /** Glide between chords (default). Turn off for wells fed from live input many times a second. */
+  animate?: boolean;
 }) {
   const { settings, names, also, colours } = useSettings();
   const home = settings.home;
@@ -206,7 +223,7 @@ export function KeyWell({
   const counts = useMemo(() => wellCounts(pitches ?? []), [pitches?.join(',')]);
   const members = [...new Set(pcs.map(mod12))];
   const target = useMemo(() => geometry(members, counts, key, L, w), [members.join(','), [...counts].join(';'), home, mode, L, w]);
-  const g = useGlide(target, `${members.join(',')}|${[...counts].join(';')}|${home}|${mode}|${L}|${w}`);
+  const g = useGlide(target, `${members.join(',')}|${[...counts].join(';')}|${home}|${mode}|${L}|${w}`, animate);
 
   // playback
   const holdTimer = useRef<number | null>(null);

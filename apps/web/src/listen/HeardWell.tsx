@@ -35,7 +35,7 @@ export function HeardWell({
     const presence = new Map<PitchClass, number>();
     for (const n of loud) presence.set(mod12(n.pitch), Math.max(presence.get(mod12(n.pitch)) ?? 0, n.level));
     const pcs = [...presence.keys()];
-    return <KeyWell pcs={pcs} root={root !== undefined && presence.has(root) ? root : undefined} pitches={loud.map((n) => n.pitch)} presence={presence} size={size} label="Notes heard" />;
+    return <KeyWell pcs={pcs} root={root !== undefined && presence.has(root) ? root : undefined} pitches={loud.map((n) => n.pitch)} presence={presence} size={size} animate={false} label="Notes heard" />;
   }
   const tones = chordPcs(target);
   const level = new Map(pcLevels.map((n) => [mod12(n.pitch), n.level] as const));
@@ -53,6 +53,7 @@ export function HeardWell({
       presence={presence}
       marks={marks}
       size={size}
+      animate={false}
       interactive
       label="Expected chord, lit by the notes heard"
     />
